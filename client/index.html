@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>NewBuddy — Social Island</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23f97362'/></svg>" />
+<script type="importmap">
+  { "imports": { "three": "/vendor/three.module.js" } }
+</script>
+</head>
+<body>
+  <div id="app">
+    <!-- 3D viewport -->
+    <canvas id="gl"></canvas>
+    <div id="labels"></div>
+
+    <!-- full-screen flow screens are injected by screens.js into #screens -->
+    <div id="screens"></div>
+
+    <!-- in-game HUD -->
+    <div id="hud" hidden>
+      <div class="hud-chip" id="hud-chip">
+        <span class="dot" id="hud-dot"></span>
+        <span id="hud-name">…</span>
+        <span class="hud-room" id="hud-room">island-1</span>
+      </div>
+
+      <div class="hud-wallet" id="wallet-chip" title="Diwali Coins">
+        <span class="coin">🪙</span><span id="wallet-balance">750</span>
+      </div>
+
+      <div class="hud-topright">
+        <button class="icon-btn" id="btn-players" title="Players" aria-label="Players">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-inventory" title="Firecrackers (I)" aria-label="Firecracker inventory">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3v9a5 5 0 0 0 10 0V8"/><path d="M5 21a4 4 0 0 1-4-4V9a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v8a4 4 0 0 1-4 4z"/><path d="M9 12l3 3M20 3l-2 2M22 8h-3M17 1l-1 2"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-friends" title="Friends" aria-label="Friends">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17.8 18.9 24l-1.8-7M12 17.8 5.1 24l1.8-7M12 17.8l1.8-6.3 6.7-.5-5.2-4.4 1.9-6.6L12 4l-5.2 3.9 1.9 6.6-5.2 4.4 6.7.5z"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-voice" title="Voice" aria-label="Voice">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3M8 22h8"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-settings" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
+      </div>
+
+      <div id="players-panel" class="glass-panel" hidden>
+        <h3>Players here</h3>
+        <ul id="players-list"></ul>
+      </div>
+
+      <div id="friends-panel" class="glass-panel" hidden>
+        <h3>Friends</h3>
+        <div class="row" id="friends-add-row">
+          <input id="friend-name-input" maxlength="20" placeholder="Name..." />
+          <button id="friend-add-btn">Add</button>
+        </div>
+        <ul id="friends-list"></ul>
+      </div>
+
+      <div id="voice-panel" class="glass-panel" hidden>
+        <h3>Voice chat</h3>
+        <button id="voice-mic-btn">Enable microphone</button>
+        <button id="voice-mic-mute">Mute mic</button>
+        <button id="voice-listen-btn">Listen only: off</button>
+        <label class="slider-row">Speaker volume
+          <input id="voice-vol" type="range" min="0" max="100" value="80" />
+        </label>
+        <p id="voice-status" class="muted">Proximity voice: off</p>
+      </div>
+
+      <div id="chat-log" aria-live="polite"></div>
+
+      <form id="chat-form" autocomplete="off">
+        <input id="chat-input" maxlength="200" placeholder="Say something…" />
+        <button id="chat-send">Send</button>
+      </form>
+
+      <div id="emote-bar">
+        <button data-emote="wave">Wave</button>
+        <button data-emote="dance">Dance</button>
+        <button data-emote="greet">Greet</button>
+        <button data-emote="sit">Sit</button>
+      </div>
+
+      <div id="fx-bar" hidden aria-label="Firecracker quick-use bar"></div>
+      <div id="interact-prompt" hidden></div>
+
+      <!-- mobile controls -->
+      <div id="touch-controls" hidden>
+        <div id="joystick"><div id="joy-knob"></div></div>
+        <button id="btn-jump">Jump</button>
+      </div>
+      <div id="cam-touch" hidden></div>
+    </div>
+
+    <!-- toasts live above both the HUD and modal screens so purchase / error
+         feedback is never hidden behind the shop overlay -->
+    <div id="toasts"></div>
+  </div>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

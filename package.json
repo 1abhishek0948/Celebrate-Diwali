@@ -1,0 +1,19 @@
+{
+  "name": "newbuddy",
+  "version": "0.1.0",
+  "description": "NewBuddy - 3D multiplayer social world prototype (Three.js client + Node.js authoritative lobby/snapshot server)",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test tests/*.test.js",
+    "loadtest": "node tools/loadtest.js"
+  },
+  "dependencies": {
+    "three": "^0.166.1",
+    "ws": "^8.18.0"
+  }
+}
