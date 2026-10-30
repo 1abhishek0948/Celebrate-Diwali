@@ -110,6 +110,8 @@ export class World {
 
   setQuality(q) { this.festival.setQuality(q); }
 
+  setTimeOfDay(mode) { this.festival.setTimeOfDay(mode); }
+
   // keeps responsive overlays (the sky greeting) fitted to the viewport
   setViewport(aspect, fovDeg) { this.festival.setViewport(aspect, fovDeg); }
 
@@ -534,7 +536,6 @@ export class World {
       void leg;
     }
     this.island.add(g);
-    this.interactables.push({ kind: 'sit', x, y: 0.45, z, ry: ry + Math.PI / 2, label: 'Sit on the bench' });
   }
 
   // is (x,z) free of roads/plaza/pond/buildings/bar? shared by trees & grass
@@ -778,8 +779,8 @@ export class World {
       g.add(win);
     }
 
-    // furniture seats
-    I.seats.forEach((seat, i) => {
+    // Interior furniture remains decorative.
+    I.seats.forEach((seat) => {
       const fx = seat.type === 'couch' ? 2.6 : seat.x * 1; void fx;
       if (seat.type === 'couch') {
         this._box(seat.x - 0.1, 0.42, seat.z, 1, 0.36, 2.2, this.mats.woodDark, g);
@@ -800,7 +801,6 @@ export class World {
       seatPad.scale.set(0.8, 0.12, 0.8);
       seatPad.position.set(seat.x, 0.32, seat.z);
       g.add(seatPad);
-      this.interactables.push({ kind: 'seat', room: plot.id, i, x: seat.x, y: seat.y, z: seat.z, label: 'Sit' });
     });
 
     // table + lamp for life

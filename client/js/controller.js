@@ -38,9 +38,13 @@ export class Controller {
     this.yaw = 0;                // character facing
     this.camYaw = 0;             // camera orbit around player
     this.camPitch = 0.34;
+    this.lookSensitivity = 0.0042;
     this.camDist = 6.8;
     this.grounded = true;
     this.mode = 0;
+    this.motionSpeed = 0;
+    this._moving = false;   // hysteresis latches for the animation state machine
+    this._running = false;
 
     this.keys = new Set();
     this.joy = { x: 0, y: 0, active: false };
@@ -48,7 +52,6 @@ export class Controller {
 
     this.rig = null;             // CharacterRig owned by main
     this.emote = null;
-    this.seat = -1;
     this.roomType = 'island';
     this.roomId = 'island-1';
     this.hoverInteract = null;
@@ -80,6 +83,12 @@ export class Controller {
       this.onPrompt?.(null);
       this.cancelSkyGlance();
     }
+  }
+
+  setSensitivity(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    this.lookSensitivity = 0.0042 * clamp(n, 30, 200) / 100;
   }
 
   _bind() {
@@ -128,8 +137,8 @@ export class Controller {
     if (this.locked) return;
     this.cancelSkyGlance();                      // hand control back at once
     if (this._sky.on) this._sky.cancel = true;   // hand control straight back to the player
-    this.camYaw -= dx * 0.0042;
-    this.camPitch = clamp(this.camPitch + dy * 0.0042, -0.3, 1.15);
+    this.camYaw -= dx * this.lookSensitivity;
+    this.camPitch = clamp(this.camPitch + dy * this.lookSensitivity, -0.3, 1.15);
   }
 
   // Ease the camera to face the festival street and lift to the sky greeting so
@@ -191,7 +200,7 @@ export class Controller {
     const { x, z } = this.pos;
     let best = null, bestD = 3.0;
     for (const it of this.world.interactables) {
-      // house interiors list their own seats; hide island doors while inside
+      // Keep room-specific objects inside their own house interiors.
       if (it.room && (it.room !== this.roomId)) continue;
       if (it.kind === 'door' && this.roomType !== 'island') continue;
       if (it.kind === 'festival' && this.roomType !== 'island') continue;
@@ -209,8 +218,6 @@ export class Controller {
     if (!it) return;
     if (it.kind === 'door') {
       this.net.send({ t: 'door', houseId: it.houseId });
-    } else if (it.kind === 'seat') {
-      this.sitOn(it);
     } else if (it.kind === 'greet') {
       this.playEmote('greet');
     } else if (it.kind === 'festival') {
@@ -220,32 +227,7 @@ export class Controller {
     }
   }
 
-  sitOn(it) {
-    if (this.seat === it.i && it.room) return;
-    if (it.room) this.net.send({ t: 'seat', i: it.i });
-    this.seat = it.i;
-    this.rig.seated = { x: it.x, y: it.y, z: it.z, ry: it.ry };
-    this.pos.set(it.x, it.y, it.z);
-    this.vel.set(0, 0, 0);
-    this.grounded = true;
-    this.vy = 0;
-  }
-
-  unseat(send = true) {
-    if (this.seat === -1) return;
-    this.seat = -1;
-    this.rig.seated = null;
-    this.pos.y = 0;
-    if (send) this.net.send({ t: 'unseat' });
-  }
-
   playEmote(e) {
-    if (this.seat !== -1 && e !== 'sit') return;
-    if (e === 'sit') {
-      if (this.seat === -1) {
-        this.rig.seated = { x: this.pos.x, y: 0, z: this.pos.z, ry: this.yaw };
-      } else return; // already seated on furniture
-    }
     // rig time domain: CharacterRig.tick computes et = rig.t - started
     this.emote = { e, started: this.rig.t, expire: this.rig.t + 6.5 };
     this.net.send({ t: 'emote', e });
@@ -264,9 +246,6 @@ export class Controller {
     let mag = Math.hypot(ix, iz);
     if (mag > 1) { ix /= mag; iz /= mag; mag = 1; }
 
-    // motion input while seated -> stand up
-    if (this.seat !== -1 && mag > 0.25) this.unseat(true);
-
     //----------- movement -----------------------------------------------------
     const walk = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
     let target = new THREE.Vector3(0, 0, 0);
@@ -277,44 +256,41 @@ export class Controller {
       const rx = -fz, rz = fx;
       target.set(ix * rx - iz * fx, 0, ix * rz - iz * fz);
       target.normalize().multiplyScalar((walk ? WALK_SPEED : RUN_SPEED) * mag);
-      const want = Math.atan2(target.x, target.z);
+      // Character meshes face local -Z. Convert the world movement vector to
+      // that convention so the face leads the walk instead of looking/backing
+      // into the direction of travel.
+      const want = Math.atan2(-target.x, -target.z);
       this.yaw += shortestDelta(this.yaw, want) * Math.min(1, dt * 14);
-      if (this.seat === -1 && !this.grounded) { /* mid-air drift allowed */ }
-    } else if (this.seat === -1) {
+      if (!this.grounded) { /* mid-air drift allowed */ }
+    } else {
       this.vel.multiplyScalar(Math.exp(-dt * 12));
     }
 
-    if (this.seat === -1) {
-      this.vel.x += (target.x - this.vel.x) * Math.min(1, dt * 12);
-      this.vel.z += (target.z - this.vel.z) * Math.min(1, dt * 12);
+    this.vel.x += (target.x - this.vel.x) * Math.min(1, dt * 12);
+    this.vel.z += (target.z - this.vel.z) * Math.min(1, dt * 12);
 
-      // jump
-      if ((this.keys.has('Space') || this.joy.jump) && this.grounded) {
-        this.vy = JUMP_SPEED;
-        this.grounded = false;
-        this.joy.jump = false;
-      }
-      this.vy -= GRAVITY * dt;
-      this.pos.y += this.vy * dt;
-      if (this.pos.y <= 0) { this.pos.y = 0; this.vy = 0; this.grounded = true; }
-
-      this.pos.x += this.vel.x * dt;
-      this.pos.z += this.vel.z * dt;
-
-      // world bounds + collisions
-      if (this.roomType === 'island') {
-        const r = Math.hypot(this.pos.x, this.pos.z);
-        if (r > PLAY_RADIUS) { const k = PLAY_RADIUS / r; this.pos.x *= k; this.pos.z *= k; }
-      } else {
-        this.pos.x = clamp(this.pos.x, -8.2, 8.2);
-        this.pos.z = clamp(this.pos.z, -6.6, 6.6);
-      }
-      this._collide();
-    } else {
-      // sitting: keep exactly at seat
-      this.pos.set(this.rig.seated.x, this.rig.seated.y, this.rig.seated.z);
-      this.vel.set(0, 0, 0);
+    // jump
+    if ((this.keys.has('Space') || this.joy.jump) && this.grounded) {
+      this.vy = JUMP_SPEED;
+      this.grounded = false;
+      this.joy.jump = false;
     }
+    this.vy -= GRAVITY * dt;
+    this.pos.y += this.vy * dt;
+    if (this.pos.y <= 0) { this.pos.y = 0; this.vy = 0; this.grounded = true; }
+
+    this.pos.x += this.vel.x * dt;
+    this.pos.z += this.vel.z * dt;
+
+    // world bounds + collisions
+    if (this.roomType === 'island') {
+      const r = Math.hypot(this.pos.x, this.pos.z);
+      if (r > PLAY_RADIUS) { const k = PLAY_RADIUS / r; this.pos.x *= k; this.pos.z *= k; }
+    } else {
+      this.pos.x = clamp(this.pos.x, -8.2, 8.2);
+      this.pos.z = clamp(this.pos.z, -6.6, 6.6);
+    }
+    this._collide();
 
     //----------- rig + camera -------------------------------------------------
     this._skyCam(dt);
@@ -323,8 +299,18 @@ export class Controller {
 
     this.rig.root.position.copy(this.pos);
     this.rig.root.rotation.y = this.yaw;
+    // Use displacement after collision resolution for animation state. This
+    // prevents a blocked character from running in place against a wall. The
+    // raw ground-plane distance drives the rig's stride matching (Y excluded so
+    // jump arcs don't spike the cadence); a lightly smoothed speed keeps the
+    // mode thresholds (below) from flickering on raw per-frame noise.
+    const dx = this.pos.x - (this._prev?.x ?? this.pos.x);
+    const dz = this.pos.z - (this._prev?.z ?? this.pos.z);
+    const moved = Math.hypot(dx, dz);
+    this.motionSpeed += (moved / Math.max(dt, 1e-4) - this.motionSpeed) *
+      Math.min(1, dt * 10);
     this.mode = this.animMode();
-    this.rig.tick(dt, this.mode, this._activeEmote(), this.pos.distanceTo(this._prev ?? this.pos));
+    this.rig.tick(dt, this.mode, this._activeEmote(), moved);
     this._prev = this.pos.clone();
 
     const boom = new THREE.Vector3(
@@ -349,11 +335,24 @@ export class Controller {
   _standPosSet(p) { this._standPos = p; }
 
   animMode() {
-    if (!this.grounded && this.vy > 0.2) return 3;
-    const sp = Math.hypot(this.vel.x, this.vel.z);
-    if (sp > 0.3) return sp > (WALK_SPEED + RUN_SPEED) / 2 - 0.4 ? 2 : 1;
+    // Airborne: play the jump clip for the whole arc (the old rule left the
+    // character "walking/running" in the air while falling).
     if (!this.grounded) return 3;
-    return 0;
+    const sp = this.motionSpeed;
+    // Hysteresis on the idle/moving and walk/run thresholds so a speed hovering
+    // near a cut-off can no longer flicker the animation between clips.
+    if (this._moving) {
+      if (sp < 0.18) this._moving = false;
+    } else if (sp > 0.34) {
+      this._moving = true;
+    }
+    if (!this._moving) return 0;
+    if (this._running) {
+      if (sp < 3.9) this._running = false;
+    } else if (sp > 4.4) {
+      this._running = true;
+    }
+    return this._running ? 2 : 1;
   }
 
   _collide() {

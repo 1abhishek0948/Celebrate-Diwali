@@ -9,12 +9,11 @@ export class Player {
     this.id = id;
     this.token = token;
     this.name = name;
-    this.av = av; // {b,h,s,p} appearance ints
+    this.av = av; // {g,b,h,y,o,e,s,p} appearance ints
     this.socket = null;
     this.room = null; // Room ref
     this.x = 0; this.y = 0; this.z = 0; this.ry = 0;
     this.mode = 0; // 0 idle, 1 walk, 2 run, 3 air
-    this.seat = -1; // seat index inside house interiors, -1 none
     this.lastSeq = 0;
     this.budget = 0; // movement budget (m) accumulates
     this.lastStateAt = 0; // wall-clock ms of last validated frame (0 = none yet)
@@ -30,7 +29,6 @@ export class Room {
     // house-room state
     this.owner = null;  // token of owner
     this.mode = 'public';
-    this.seats = new Map(); // seatIdx -> playerId
     this.hashedPlayers = new Set();
   }
 
@@ -86,14 +84,12 @@ export class RoomIndex {
   add(room, player) {
     room.players.set(player.id, player);
     player.room = room;
-    if (room.isHouse()) room.seats.delete(player.seat);
   }
 
   remove(player) {
     const room = player.room;
     if (!room) return null;
     room.players.delete(player.id);
-    if (room.isHouse() && player.seat >= 0) room.seats.delete(player.seat);
     player.room = null;
     return room;
   }

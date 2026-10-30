@@ -4,24 +4,30 @@
 //  - session resume via device token (reconnect keeps player id + room)
 //  - server clock estimation for snapshot interpolation (ping/pong)
 // ---------------------------------------------------------------------------
-const TOKEN_KEY = 'newbuddy.token';
-const PROFILE_KEY = 'newbuddy.profile';
+const TOKEN_KEY = "NewBuddy.token";
+const PROFILE_KEY = "NewBuddy.profile";
 
 export function deviceToken() {
   let t = localStorage.getItem(TOKEN_KEY);
   if (!t || !/^[a-f0-9]{16,64}$/.test(t)) {
     const arr = new Uint8Array(16);
     crypto.getRandomValues(arr);
-    t = [...arr].map((b) => b.toString(16).padStart(2, '0')).join('');
+    t = [...arr].map((b) => b.toString(16).padStart(2, "0")).join("");
     localStorage.setItem(TOKEN_KEY, t);
   }
   return t;
 }
 
 export function loadProfile() {
-  try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}'); } catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+  } catch {
+    return {};
+  }
 }
-export function saveProfile(p) { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); }
+export function saveProfile(p) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+}
 
 const MAX_RECONNECT_DELAY = 8000;
 
@@ -29,9 +35,9 @@ export class Net extends EventTarget {
   constructor() {
     super();
     this.ws = null;
-    this.status = 'idle'; // idle | connecting | open | reconnecting | closed
+    this.status = "idle"; // idle | connecting | open | reconnecting | closed
     this.attempt = 0;
-    this.clockOffset = 0;   // serverTime - clientTime (ms)
+    this.clockOffset = 0; // serverTime - clientTime (ms)
     this.rtt = 0;
     this.welcomed = false;
     this.hello = null;
@@ -40,12 +46,12 @@ export class Net extends EventTarget {
   }
 
   url() {
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const proto = location.protocol === "https:" ? "wss" : "ws";
     return `${proto}://${location.host}/ws`;
   }
 
   helloMsg() {
-    const core = { t: 'hello', token: deviceToken() };
+    const core = { t: "hello", token: deviceToken() };
     if (this.hello) {
       core.name = this.hello.name;
       core.av = this.hello.av;
@@ -59,16 +65,20 @@ export class Net extends EventTarget {
   }
 
   _open() {
-    if (this.ws) { try { this.ws.close(); } catch {} }
-    this.status = this.attempt ? 'reconnecting' : 'connecting';
-    this._emit('status', this.status);
+    if (this.ws) {
+      try {
+        this.ws.close();
+      } catch {}
+    }
+    this.status = this.attempt ? "reconnecting" : "connecting";
+    this._emit("status", this.status);
     const ws = new WebSocket(this.url());
     this.ws = ws;
 
     ws.onopen = () => {
       this.attempt = 0;
-      this.status = 'open';
-      this._emit('status', this.status);
+      this.status = "open";
+      this._emit("status", this.status);
       this.send(this.helloMsg());
       this._queue.forEach((m) => ws.send(JSON.stringify(m)));
       this._queue.length = 0;
@@ -77,20 +87,27 @@ export class Net extends EventTarget {
 
     ws.onmessage = (ev) => {
       let m;
-      try { m = JSON.parse(ev.data); } catch { return; }
+      try {
+        m = JSON.parse(ev.data);
+      } catch {
+        return;
+      }
       this._route(m);
     };
 
     ws.onclose = () => {
       this._stopPing();
       if (this.welcomed) {
-        this.status = 'reconnecting';
-        this._emit('status', 'reconnecting');
-        const delay = Math.min(MAX_RECONNECT_DELAY, 500 * Math.pow(2, this.attempt++));
+        this.status = "reconnecting";
+        this._emit("status", "reconnecting");
+        const delay = Math.min(
+          MAX_RECONNECT_DELAY,
+          500 * Math.pow(2, this.attempt++),
+        );
         setTimeout(() => this._open(), delay);
       } else {
-        this.status = 'closed';
-        this._emit('status', 'closed');
+        this.status = "closed";
+        this._emit("status", "closed");
       }
     };
     ws.onerror = () => ws.close();
@@ -107,59 +124,99 @@ export class Net extends EventTarget {
   }
 
   // server time estimate for interpolation
-  now() { return Date.now() + this.clockOffset; }
+  now() {
+    return Date.now() + this.clockOffset;
+  }
 
   _startPing() {
     this._stopPing();
     this._pingTimer = setInterval(() => {
-      this.send({ t: 'ping', ts: Date.now() });
+      this.send({ t: "ping", ts: Date.now() });
     }, 2000);
   }
 
-  _stopPing() { if (this._pingTimer) { clearInterval(this._pingTimer); this._pingTimer = null; } }
+  _stopPing() {
+    if (this._pingTimer) {
+      clearInterval(this._pingTimer);
+      this._pingTimer = null;
+    }
+  }
 
   _route(m) {
     switch (m.t) {
-      case 'welcome': {
+      case "welcome": {
         this.welcomed = true;
         this.attempt = 0;
-        this._emit('welcome', m);
+        this._emit("welcome", m);
         break;
       }
-      case 'welcome2': this._emit('roomRoster', m); break;
-      case 'join': this._emit('join', m.p); break;
-      case 'leave':
-        this._emit('leave', m.id);
-        if (m.sys) this._emit('sys', { text: m.sys, kind: 'leave' });
+      case "welcome2":
+        this._emit("roomRoster", m);
         break;
-      case 'snap': this._emit('snap', m); break;
-      case 'chat': this._emit('chat', m); break;
-      case 'emote': this._emit('emote', m); break;
-      case 'sys': this._emit('sys', m); break;
-      case 'room': this._emit('room', m); break;
-      case 'seated': this._emit('seated', m); break;
-      case 'err':
-        this._emit('err', m);
-        if (m.code === 'replaced') this.resetSession();
+      case "join":
+        this._emit("join", m.p);
         break;
-      case 'wallet': this._emit('wallet', m); break;
-      case 'fx': this._emit('fx', m); break;
-      case 'friends': this._emit('friends', m); break;
-      case 'fReq': this._emit('fReq', m); break;
-      case 'invite': this._emit('invite', m); break;
-      case 'houseOwned': this._emit('houseOwned', m); break;
-      case 'houseMode': this._emit('houseMode', m); break;
-      case 'blocked': this._emit('blocked', m); break;
-      case 'pong': {
+      case "leave":
+        this._emit("leave", m.id);
+        if (m.sys) this._emit("sys", { text: m.sys, kind: "leave" });
+        break;
+      case "snap":
+        this._emit("snap", m);
+        break;
+      case "chat":
+        this._emit("chat", m);
+        break;
+      case "emote":
+        this._emit("emote", m);
+        break;
+      case "sys":
+        this._emit("sys", m);
+        break;
+      case "room":
+        this._emit("room", m);
+        break;
+      case "err":
+        this._emit("err", m);
+        if (m.code === "replaced") this.resetSession();
+        break;
+      case "wallet":
+        this._emit("wallet", m);
+        break;
+      case "fx":
+        this._emit("fx", m);
+        break;
+      case "friends":
+        this._emit("friends", m);
+        break;
+      case "fReq":
+        this._emit("fReq", m);
+        break;
+      case "invite":
+        this._emit("invite", m);
+        break;
+      case "houseOwned":
+        this._emit("houseOwned", m);
+        break;
+      case "houseMode":
+        this._emit("houseMode", m);
+        break;
+      case "blocked":
+        this._emit("blocked", m);
+        break;
+      case "pong": {
         const rtt = Date.now() - m.ts;
         this.rtt = this.rtt ? this.rtt * 0.7 + rtt * 0.3 : rtt;
         // clock offset: server clock at receipt ≈ m.st, client local now
         const offset = m.st - (Date.now() - this.rtt / 2);
-        this.clockOffset = this.clockOffset ? this.clockOffset * 0.7 + offset * 0.3 : offset;
-        this._emit('netstat', { rtt: this.rtt });
+        this.clockOffset = this.clockOffset
+          ? this.clockOffset * 0.7 + offset * 0.3
+          : offset;
+        this._emit("netstat", { rtt: this.rtt });
         break;
       }
-      case 'vsig': this._emit('vsig', m); break;
+      case "vsig":
+        this._emit("vsig", m);
+        break;
     }
   }
 
@@ -169,5 +226,7 @@ export class Net extends EventTarget {
   }
 
   // typed event hooks
-  on(type, cb) { this.addEventListener(type, (e) => cb(e.detail)); }
+  on(type, cb) {
+    this.addEventListener(type, (e) => cb(e.detail));
+  }
 }

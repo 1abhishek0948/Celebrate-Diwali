@@ -4,9 +4,9 @@ Bots: 100 | Duration: 45s | Server: ws://localhost:3000
 
 ## Per-client throughput (bytes/s, all bots)
 
-| metric | p50 | p95 | p99 | max | avg | total |
-| --- | --- | --- | --- | --- | --- | --- |
-| uplink | 1560 | 1572 | 1576 | 1578 | 1559 | 155891 |
+| metric   | p50   | p95   | p99   | max   | avg   | total   |
+| -------- | ----- | ----- | ----- | ----- | ----- | ------- |
+| uplink   | 1560  | 1572  | 1576  | 1578  | 1559  | 155891  |
 | downlink | 96181 | 96796 | 96843 | 96850 | 96244 | 9624362 |
 
 ## RTT (server loopback, pong)

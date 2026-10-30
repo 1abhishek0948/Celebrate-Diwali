@@ -42,6 +42,9 @@ houses, chat, and — with the mic on — talk.
 - 10 s reconnect grace; duplicate login takes over the session (old socket closed,
   same player id preserved)
 - Interest radius: you only receive snapshots for players within 80 m
+- Three festival outfits and three hairstyles for **both** genders, all built
+  procedurally from primitives (daura/kurta/waistcoat/shalwar, saree/lehenga);
+  the Fabric / Accent swatches recolor either gender
 - WebRTC voice mesh (≤8 nearest peers, distance-attenuated, room-scoped)
 - 7 server integration tests, 10-client E2E smoke in headless Chrome,
   100-player load test (`npm run loadtest`)
@@ -62,4 +65,5 @@ node tools/loadtest.js 100 45   # 100 bots, 45s -> loads/load-report.md
 - [docs/LICENSES.md](docs/LICENSES.md) — third-party component licenses
 - [docs/ROADMAP.md](docs/ROADMAP.md) — known limitations and next steps
 - [loads/load-report.md](loads/load-report.md) — measured throughput @ 100 players
+
 # Celebrate-Diwali

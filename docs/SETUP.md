@@ -13,18 +13,18 @@ npm start            # serves client at / and the game WebSocket on :3000
 ```
 
 Open `http://localhost:3000` in two different browsers (or a normal + an
-incognito window) to play with two players. Two tabs of the *same* browser
+incognito window) to play with two players. Two tabs of the _same_ browser
 share one device token, and a new login with the same token takes over the
 session by design.
 
 ## Environment variables (server)
 
-| var | default | meaning |
-| --- | --- | --- |
-| `PORT` | `3000` | HTTP + WebSocket port |
-| `ALLOWED_ORIGINS` | — | comma list of extra origins allowed in the WS `Origin` header (LAN testing). `http://localhost:*` and the serving host are always allowed |
-| `NEWBUDDY_ALLOW_TELEPORT` | off | dev-only: allows the `st` field `debugPos` to teleport a player (bypasses the movement budget). Normal movement validation is unchanged. Tests run with this set to `1` |
-| `NEWBUDDY_DEBUG_MSG` | off | log every received message type to stderr |
+| var                       | default | meaning                                                                                                                                                                 |
+| ------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                    | `3000`  | HTTP + WebSocket port                                                                                                                                                   |
+| `ALLOWED_ORIGINS`         | —       | comma list of extra origins allowed in the WS `Origin` header (LAN testing). `http://localhost:*` and the serving host are always allowed                               |
+| `NewBuddy_ALLOW_TELEPORT` | off     | dev-only: allows the `st` field `debugPos` to teleport a player (bypasses the movement budget). Normal movement validation is unchanged. Tests run with this set to `1` |
+| `NewBuddy_DEBUG_MSG`      | off     | log every received message type to stderr                                                                                                                               |
 
 There is no database: persistent state (names, avatars, friend lists, house
 ownership) lives in `data/profiles.json`, created on first write. Delete it to
