@@ -521,7 +521,7 @@ export class Festival {
     // glowing rangoli / mandalas — a refined central rangoli that reads as
     // hand-drawn pigment lit by the surrounding diyas, not a floor-to-edge
     // neon carpet (which drowns the stone plaza and the crowd).
-    this._mandala(0, 0, 14, 0.082, 0, 0.62);
+    this._mandala(0, 0, 14, 0.082, 0, 0.42);
     this._mandala(-44, 44, 7, 0.09, 1, 0.7);
     this._mandala(40, 34, 5.5, 0.09, 2, 0.7);
     this._mandala(-40, 34, 5.5, 0.09, 2, 0.7);
@@ -2024,7 +2024,7 @@ export class Festival {
     this.fwPoints = new THREE.Points(
       g,
       new THREE.PointsMaterial({
-        size: 5.0,
+        size: 3.6,
         map: this._softTexture(32, [
           [0, "rgba(255,255,255,1)"],
           [0.4, "rgba(255,255,255,0.5)"],
@@ -2061,15 +2061,16 @@ export class Festival {
       [1.0, 0.55, 0.2],
       [0.95, 0.95, 1.0],
     ];
-    // warm, saturated palette shared by the ground crackers
+    // warm, saturated palette shared by the ground crackers — iron filings
+    // burn gold, so the shower reads champagne/amber/copper with rare
+    // white-hot flashes instead of a toy rainbow
     this.sparkCols = [
-      [1.0, 0.82, 0.35],
-      [1.0, 0.55, 0.16],
-      [1.0, 0.3, 0.12],
-      [1.0, 0.97, 0.88],
-      [0.55, 0.95, 1.0],
-      [0.75, 1.0, 0.55],
-      [1.0, 0.45, 0.85],
+      [1.0, 0.78, 0.32], // classic gold
+      [1.0, 0.62, 0.2], // amber
+      [1.0, 0.45, 0.14], // copper orange
+      [1.0, 0.92, 0.7], // champagne
+      [1.0, 0.98, 0.9], // white-hot flash
+      [1.0, 0.55, 0.3], // warm coral
     ];
     // aerial patterns: each has its own motion signature (see _fwBurst)
     this.fwTypes = [
@@ -2110,6 +2111,7 @@ export class Festival {
     this.fwLife[idx] = life;
     this.fwMaxLife[idx] = life;
     this.fwGrav[idx] = grav;
+    if (this.fwBounce) this.fwBounce[idx] = 0;
   }
 
   // Aerial shots — several distinct patterns so no two bursts look alike.
@@ -2261,7 +2263,9 @@ export class Festival {
 
   _aerialShot() {
     const a = this._rr(0, Math.PI * 2),
-      r = this._rr(20, 150);
+      // well clear of the plaza cracker ring: 5-unit additive sparks look
+      // enormous and white-out the view when a burst happens near the camera
+      r = this._rr(55, 160);
     const x = Math.cos(a) * r,
       z = Math.sin(a) * r;
     const y = this._rr(46, 96);
@@ -2270,7 +2274,9 @@ export class Festival {
 
   _launchRocket() {
     const a = this._rr(0, Math.PI * 2);
-    const r = this._rr(18, 120);
+    // keep launches outside the plaza so their smoke trails never pour
+    // across the cracker ring at map centre
+    const r = this._rr(50, 150);
     const x = Math.cos(a) * r,
       z = Math.sin(a) * r;
     const idx = this.fwNext++ % this.fwMax;
@@ -2417,8 +2423,23 @@ export class Festival {
       p[i3] += this.fwVel[i3] * dt;
       p[i3 + 1] += this.fwVel[i3 + 1] * dt;
       p[i3 + 2] += this.fwVel[i3 + 2] * dt;
+      // ground collision: a spark that falls onto the stone goes out instead of
+      // sinking through the plaza (real fireworks bounce once, then die)
+      if (p[i3 + 1] < 0.06 && this.fwVel[i3 + 1] < 0) {
+        if (this.fwBounce?.[i]) {
+          this.fwLife[i] = 0;
+          c[i3] = c[i3 + 1] = c[i3 + 2] = 0;
+          continue;
+        }
+        p[i3 + 1] = 0.06;
+        this.fwVel[i3 + 1] *= -0.32;
+        this.fwVel[i3] *= 0.65;
+        this.fwVel[i3 + 2] *= 0.65;
+        (this.fwBounce ||= new Uint8Array(this.fwMax))[i] = 1;
+      }
       const t01 = this.fwLife[i] / this.fwMaxLife[i];
-      const f = Math.min(1, t01 * 2.4);
+      // white-hot ignition flash in the first instants, then the true colour
+      const f = Math.min(1, t01 * 2.4) * (t01 > 0.88 ? 1.5 : 1);
       c[i3] = this.fwBase[i3] * f;
       c[i3 + 1] = this.fwBase[i3 + 1] * f;
       c[i3 + 2] = this.fwBase[i3 + 2] * f;
@@ -2453,7 +2474,7 @@ export class Festival {
     this.smokePoints = new THREE.Points(
       g,
       new THREE.PointsMaterial({
-        size: 3.0,
+        size: 2.4,
         map: this._softTexture(64, [
           [0, "rgba(196,192,212,0.7)"],
           [0.45, "rgba(148,146,178,0.28)"],
@@ -2537,16 +2558,18 @@ export class Festival {
     this.crackers = [];
     this._crackerV = new THREE.Vector3();
     this._axisY = new THREE.Vector3(0, 1, 0);
-    // [type, x, z] — spread over the plaza, clear of the fountain / diya rings
+    // [type, x, z] — displayed in a fan around the fountain at the exact centre
+    // of the map (plaza origin), on the clear band between the inner diya ring
+    // (r 11) and the next (r 18); the four cardinal approaches stay open.
     const spots = [
-      ["anar", -23, -9],
-      ["anar", 23, 9],
-      ["anar", -8, 28],
-      ["chakri", 9, -28],
-      ["chakri", -29, 13],
-      ["chakri", 29, -13],
-      ["phuljhadi", 16, 20],
-      ["phuljhadi", -16, -20],
+      ["anar", 11.1, 6.4],
+      ["anar", -11.1, 6.4],
+      ["anar", 0, -12.8],
+      ["chakri", 0, 12.8],
+      ["chakri", -11.1, -6.4],
+      ["chakri", 11.1, -6.4],
+      ["phuljhadi", -6.7, 11.6],
+      ["phuljhadi", -6.7, -11.6],
     ];
     const clayMat = new THREE.MeshLambertMaterial({
       color: 0xa1542e,
@@ -2582,8 +2605,8 @@ export class Festival {
         glow,
         t: this._rr(0, 8),
         on: true,
-        onDur: this._rr(1.8, 3.4),
-        offDur: this._rr(0.6, 1.8),
+        onDur: this._rr(5.4, 6.2), // ~7 s burn -> short dark cooldown
+        offDur: this._rr(0.8, 1.4),
         acc: 0,
         flash: 0,
         phase: this._rr(0, 6.28),
@@ -2610,7 +2633,7 @@ export class Festival {
         vent.position.y = 0.53;
         g.add(vent);
         c.tip = vent;
-        c.rate = this.quality === "high" ? 105 : 62;
+        c.rate = this.quality === "high" ? 132 : 78;
       } else if (type === "chakri") {
         const spinner = new THREE.Group();
         spinner.position.y = 0.07;
@@ -2627,7 +2650,7 @@ export class Festival {
         rim.rotation.x = Math.PI / 2;
         spinner.add(rim);
         c.spinner = spinner;
-        c.rate = this.quality === "high" ? 92 : 56;
+        c.rate = this.quality === "high" ? 110 : 66;
       } else {
         const hand = new THREE.Mesh(
           new THREE.SphereGeometry(0.13, 8, 6),
@@ -2653,7 +2676,7 @@ export class Festival {
         c.holder = holder;
         c.tip = tip;
         c.halo = halo;
-        c.rate = this.quality === "high" ? 72 : 44;
+        c.rate = this.quality === "high" ? 88 : 55;
       }
       this.root.add(g);
       this._clear(x, z, 2.4);
@@ -2673,17 +2696,17 @@ export class Festival {
     for (let ci = 0; ci < list.length; ci++) {
       const c = list[ci];
       c.t += dt;
-      // staggered on/off cycle so nothing animates in lock-step
+      // ~7 s active burn, then a brief cooldown before re-lighting
       if (c.on) {
         if (c.t >= c.onDur) {
           c.on = false;
           c.t = 0;
-          c.onDur = this._rr(1.8, 3.6);
+          c.onDur = this._rr(5.4, 6.2);
         }
       } else if (c.t >= c.offDur) {
         c.on = true;
         c.t = 0;
-        c.offDur = this._rr(0.6, 2.0);
+        c.offDur = this._rr(0.8, 1.4);
       }
       c.flash = Math.max(0, c.flash - dt * 2.6);
 
@@ -2702,40 +2725,58 @@ export class Festival {
           c.acc -= 1;
           const col = this._pick(this.sparkCols);
           const a = this.rand() * Math.PI * 2;
-          const sp = this._rr(0.2, 1.5);
-          this._spark(
+          const sp = this._rr(0.3, 2.6);            // thin sideways scatter
+          this._pfxSpark(
             c.x + Math.cos(a) * 0.04,
             0.53 + this._rr(-0.02, 0.07),
             c.z + Math.sin(a) * 0.04,
             Math.cos(a) * sp,
-            this._rr(6.5, 11.5),
+            this._rr(2.6, 6.5),                      // spray reaches 0.5-2.8 m
             Math.sin(a) * sp,
             col[0],
             col[1],
             col[2],
-            this._rr(0.45, 1.05),
+            this._rr(0.55, 1.3),                     // falls back while still lit
             0.95,
           );
+          // a few heavier sparks — they slow down, curve down, then thud to the ground
+          if (this.rand() < 0.26) {
+            this._pfxSpark(
+              c.x + Math.cos(a) * 0.02,
+              0.58 + this._rr(0, 0.05),
+              c.z + Math.sin(a) * 0.02,
+              Math.cos(a) * sp * 0.7,
+              this._rr(3.2, 5.6),
+              Math.sin(a) * sp * 0.7,
+              1,
+              this._rr(0.88, 1),
+              0.62,
+              this._rr(0.8, 1.5),
+              2.1,                            // heavy -> strong gravity
+            );
+          }
         }
-        if (this.rand() < dt * 4)
+        if (this.rand() < dt * 2)
           this._puff(c.x, 1.1, c.z, 0.45, this._rr(1.1, 1.9), 0.4);
+        // the burning clay vent breathes: scale its glowing tip, not the shared material
+        if (c.tip) c.tip.scale.setScalar(1 + 0.14 * Math.sin(this.time * 24 + c.phase));
         // occasional bright "pop": a ring of brighter, faster sparks
         if (this.rand() < dt * 2.2) {
           c.flash = 1;
           for (let k = 0; k < (this.quality === "high" ? 26 : 16); k++) {
             const a = this.rand() * Math.PI * 2,
               sp = this._rr(2, 5);
-            this._spark(
+            this._pfxSpark(
               c.x,
               0.55,
               c.z,
               Math.cos(a) * sp,
-              this._rr(9, 14),
+              this._rr(4.5, 8.5),
               Math.sin(a) * sp,
               1,
               this._rr(0.85, 1),
               this._rr(0.6, 0.85),
-              this._rr(0.5, 0.9),
+              this._rr(0.45, 0.8),
               0.9,
             );
           }
@@ -2743,6 +2784,8 @@ export class Festival {
         }
         energy = 1 + c.flash * 2;
       } else if (c.type === "chakri") {
+        // real spinning wheel: accelerates while active, sheds bright arcs
+        // from its rim, and spins down naturally when it turns off.
         c.angle += c.spin * (1 + c.flash * 1.5) * dt;
         c.spinner.rotation.y = c.angle;
         c.glow.opacity =
@@ -2753,33 +2796,51 @@ export class Festival {
           const px = c.x + Math.cos(a) * 0.34,
             pz = c.z + Math.sin(a) * 0.34;
           const tang = a + Math.PI / 2;
-          const sp = this._rr(2.5, 7);
+          const sp = this._rr(2.2, 5.5);
           const col = this._pick(this.sparkCols);
-          this._spark(
+          this._pfxSpark(
             px,
-            this._rr(0.06, 0.32),
+            this._rr(0.06, 0.36),
             pz,
             Math.cos(tang) * sp,
-            this._rr(0.4, 1.9),
+            this._rr(0.6, 2.2),
             Math.sin(tang) * sp,
             col[0],
             col[1],
             col[2],
-            this._rr(0.3, 0.75),
-            1.2,
+            this._rr(0.45, 0.85),
+            1.3,
           );
+          // heavy sparks arc down and thud on the stone
+          if (this.rand() < 0.3) {
+            this._pfxSpark(
+              px,
+              this._rr(0.08, 0.34),
+              pz,
+              Math.cos(tang + this._rr(-0.25, 0.25)) * sp * 0.75,
+              this._rr(0.3, 1.2),
+              Math.sin(tang + this._rr(-0.25, 0.25)) * sp * 0.75,
+              1,
+              this._rr(0.85, 0.98),
+              0.58,
+              this._rr(0.55, 1.2),
+              2.3,
+            );
+          }
         }
-        if (this.rand() < dt * 1.1) c.flash = 1;
+        if (this.rand() < dt * 1.3) c.flash = 1;
         energy = 1 + c.flash * 2.5;
       } else {
-        // phuljhadi — rocks in the "hand" so the glowing tip traces a short trail
+        // phuljhadi — rocks in the "hand" so the glowing tip traces a short trail.
+        // Real sparkler look: faster hand wobble, dense bright shower of gold/white
+        // sparks that fall under gravity and bounce once off the stone.
         const holder = c.holder;
         const rock = this.reduceMotion ? 0 : 1;
         holder.rotation.z =
-          -0.22 + Math.sin(this.time * 2.2 + c.phase) * 0.16 * rock;
+          -0.22 + Math.sin(this.time * 3.6 + c.phase) * 0.2 * rock;
         holder.rotation.x =
-          Math.sin(this.time * 1.7 + c.phase * 1.3) * 0.13 * rock;
-        c.glow.opacity = 0.55 + 0.22 * Math.sin(this.time * 30 + c.phase);
+          Math.sin(this.time * 2.9 + c.phase * 1.3) * 0.15 * rock;
+        c.glow.opacity = 0.55 + 0.22 * Math.sin(this.time * 38 + c.phase);
         if (c.halo)
           c.halo.scale.setScalar(
             0.85 + 0.25 * Math.sin(this.time * 14 + c.phase),
@@ -2796,9 +2857,9 @@ export class Festival {
         while (c.acc >= 1) {
           c.acc -= 1;
           const a = this.rand() * Math.PI * 2;
-          const sp = this._rr(0.6, 3.2);
+          const sp = this._rr(0.8, 4.2);
           const col = this._pick(this.sparkCols);
-          this._spark(
+          this._pfxSpark(
             tx,
             ty,
             tz,
@@ -2812,7 +2873,7 @@ export class Festival {
             0.7,
           );
         }
-        if (this.rand() < dt * 2.5)
+        if (this.rand() < dt * 1.2)
           this._puff(tx, ty, tz, 0.22, this._rr(0.8, 1.4), 0.3);
         energy = 1.1;
       }
@@ -2880,7 +2941,10 @@ export class Festival {
   // additive pool keeps fountains / spinners / sparklers crisp without touching
   // the ambient show or adding per-particle draw calls.
   _initPfxSparks() {
-    const max = this.quality === "high" ? 520 : 300;
+    // Large pool: it carries every ambient ground cracker (8 props x ~90-105
+    // sparks/s with ~1 s lifetimes plus the handheld sparklers and bought
+    // fountain props), so it needs roughly a second of full-rate output.
+    const max = this.quality === "high" ? 2000 : 1000;
     this.pfxSparkMax = max;
     this.pfxSparkNext = 0;
     this.pfxSparkVel = new Float32Array(max * 3);
@@ -2888,6 +2952,7 @@ export class Festival {
     this.pfxSparkLife = new Float32Array(max);
     this.pfxSparkMaxLife = new Float32Array(max);
     this.pfxSparkGrav = new Float32Array(max);
+    this.pfxSparkBounce = new Uint8Array(max); // one ground hop, then die
     const pos = new Float32Array(max * 3);
     const col = new Float32Array(max * 3);
     const g = new THREE.BufferGeometry();
@@ -2930,6 +2995,7 @@ export class Festival {
     this.pfxSparkLife[idx] = life;
     this.pfxSparkMaxLife[idx] = life;
     this.pfxSparkGrav[idx] = grav;
+    if (this.pfxSparkBounce) this.pfxSparkBounce[idx] = 0;
   }
 
   _updatePfxSparks(dt) {
@@ -2957,6 +3023,20 @@ export class Festival {
       p[i3] += this.pfxSparkVel[i3] * dt;
       p[i3 + 1] += this.pfxSparkVel[i3 + 1] * dt;
       p[i3 + 2] += this.pfxSparkVel[i3 + 2] * dt;
+      // ground contact: a real spark loses most of its energy, hops once,
+      // and burns out on the second touch instead of sinking through the plaza
+      if (p[i3 + 1] < 0.06 && this.pfxSparkVel[i3 + 1] < 0) {
+        if (this.pfxSparkBounce[i]) {
+          this.pfxSparkLife[i] = 0;
+          c[i3] = c[i3 + 1] = c[i3 + 2] = 0;
+          continue;
+        }
+        this.pfxSparkBounce[i] = 1;
+        p[i3 + 1] = 0.06;
+        this.pfxSparkVel[i3 + 1] *= -0.25;
+        this.pfxSparkVel[i3] *= 0.55;
+        this.pfxSparkVel[i3 + 2] *= 0.55;
+      }
       const f = Math.min(1, (life / this.pfxSparkMaxLife[i]) * 2.4);
       c[i3] = this.pfxSparkBase[i3] * f;
       c[i3 + 1] = this.pfxSparkBase[i3 + 1] * f;
@@ -3053,8 +3133,10 @@ export class Festival {
       group: g,
       glow,
       t: 0,
-      dur: type === "chakri" ? 5.0 : 3.8,
+      // 7-second burn, matching the catalog durations
+      dur: 7.0,
       acc: 0,
+      flash: 0,
       angle: this.rand() * 6.28,
       spin: this._rr(9, 15),
       phase: this.rand() * 6.28,
@@ -3069,7 +3151,8 @@ export class Festival {
       const vent = new THREE.Mesh(this._pfxBudGeo, glow);
       vent.position.y = 0.53;
       g.add(vent);
-      c.rate = this.quality === "high" ? 105 : 62;
+      c.tip = vent;
+      c.rate = this.quality === "high" ? 132 : 78;
     } else {
       const spinner = new THREE.Group();
       spinner.position.y = 0.07;
@@ -3079,7 +3162,7 @@ export class Festival {
       rim.rotation.x = Math.PI / 2;
       spinner.add(rim);
       c.spinner = spinner;
-      c.rate = this.quality === "high" ? 92 : 56;
+      c.rate = this.quality === "high" ? 110 : 66;
     }
     this.root.add(g);
     this.pfxProps.push(c);
@@ -3143,7 +3226,7 @@ export class Festival {
   }
 
   // Handheld sparkler attached to a character rig (own or remote).
-  attachSparkler(ownerId, rig, dur = 6) {
+  attachSparkler(ownerId, rig, dur = 7) {
     if (!rig) return;
     this.detachSparkler(ownerId);
     const g = new THREE.Group();
@@ -3204,6 +3287,7 @@ export class Festival {
     for (let i = list.length - 1; i >= 0; i--) {
       const c = list[i];
       c.t += dt;
+      c.flash = Math.max(0, (c.flash || 0) - dt * 2.6);
       if (c.t >= c.dur + 0.7) {
         this._removePlayerProp(i);
         continue;
@@ -3212,27 +3296,43 @@ export class Festival {
       const ramp = active ? Math.min(1, (c.dur - c.t) / 0.5) : 0;
       if (c.type === "anar") {
         if (active) {
-          c.glow.opacity =
-            (0.45 + 0.25 * Math.sin(this.time * 24 + c.phase)) * ramp;
+          // the burning clay vent breathes: scale its glowing tip mesh
+          if (c.tip) c.tip.scale.setScalar(1 + 0.14 * Math.sin(this.time * 24 + c.phase));
+          c.glow.opacity = (0.45 + 0.25 * Math.sin(this.time * 24 + c.phase)) * ramp;
           c.acc += c.rate * rateF * dt;
           while (c.acc >= 1) {
             c.acc -= 1;
             const col = this._pick(this.sparkCols);
             const a = this.rand() * Math.PI * 2;
-            const sp = this._rr(0.2, 1.5);
+            const sp = this._rr(0.3, 2.6);
             this._pfxSpark(
               c.x + Math.cos(a) * 0.04,
               0.53 + this._rr(-0.02, 0.07),
               c.z + Math.sin(a) * 0.04,
               Math.cos(a) * sp,
-              this._rr(6.5, 11.5),
+              this._rr(7, 15),
               Math.sin(a) * sp,
               col[0],
               col[1],
               col[2],
-              this._rr(0.45, 1.05),
+              this._rr(0.6, 1.6),
               0.95,
             );
+            if (this.rand() < 0.26) {
+              this._pfxSpark(
+                c.x + Math.cos(a) * 0.02,
+                0.58 + this._rr(0, 0.05),
+                c.z + Math.sin(a) * 0.02,
+                Math.cos(a) * sp * 0.7,
+                this._rr(5.5, 9),
+                Math.sin(a) * sp * 0.7,
+                1,
+                this._rr(0.88, 1),
+                0.62,
+                this._rr(0.9, 2.2),
+                2.1,
+              );
+            }
           }
           if (this.rand() < dt * 4)
             this._puff(c.x, 1.1, c.z, 0.45, this._rr(1.1, 1.9), 0.4);
@@ -3245,35 +3345,55 @@ export class Festival {
           c.glow.opacity = Math.max(0, c.glow.opacity - dt * 2.4);
         }
       } else {
-        // chakri
+        // chakri — real spinner: faster spin-up, sparks trail into arcs,
+        // brightens as it revs, and sheds sparks from both rim faces.
         if (active) {
-          c.angle += c.spin * dt;
+          c.angle += c.spin * (1.1 + c.flash * 1.5) * dt;
           c.spinner.rotation.y = c.angle;
           c.glow.opacity =
-            (0.34 + 0.25 * Math.abs(Math.sin(c.angle * 0.5))) * ramp;
-          c.acc += c.rate * rateF * dt;
+            (0.34 + 0.25 * Math.abs(Math.sin(c.angle * 0.5)) + c.flash * 0.5) * ramp;
+          // spark intensity grows as the wheel spins up -> brighter centre ring
+          const intensity = Math.min(1, (c.t + 0.5) / 1.6);
+          c.acc += c.rate * rateF * intensity * dt;
           while (c.acc >= 1) {
             c.acc -= 1;
             const a = c.angle + this._rr(-0.45, 0.45);
             const px = c.x + Math.cos(a) * 0.34,
               pz = c.z + Math.sin(a) * 0.34;
             const tang = a + Math.PI / 2;
-            const sp = this._rr(2.5, 7);
+            const sp = this._rr(2.8, 8);
             const col = this._pick(this.sparkCols);
             this._pfxSpark(
               px,
-              this._rr(0.06, 0.32),
+              this._rr(0.06, 0.36),
               pz,
               Math.cos(tang) * sp,
-              this._rr(0.4, 1.9),
+              this._rr(0.5, 2.4),
               Math.sin(tang) * sp,
               col[0],
               col[1],
               col[2],
-              this._rr(0.3, 0.75),
-              1.2,
+              this._rr(0.4, 0.95),
+              1.3,
             );
+            // heavy rim sparks: a short arc, then a thud on the stone
+            if (this.rand() < 0.3) {
+              this._pfxSpark(
+                px,
+                this._rr(0.08, 0.34),
+                pz,
+                Math.cos(tang + this._rr(-0.25, 0.25)) * sp * 0.75,
+                this._rr(0.3, 1.2),
+                Math.sin(tang + this._rr(-0.25, 0.25)) * sp * 0.75,
+                1,
+                this._rr(0.85, 0.98),
+                0.58,
+                this._rr(0.6, 1.5),
+                2.3,
+              );
+            }
           }
+          if (this.rand() < dt * 1.3) c.flash = 1;
           if (bestE < 1.4) {
             bestE = 1.4;
             bx = c.x;
@@ -3303,11 +3423,11 @@ export class Festival {
         s.halo.scale.setScalar(
           (2.2 + 0.4 * Math.sin(this.time * 14 + s.phase)) * fade,
         );
-        s.acc += (this.quality === "high" ? 72 : 44) * rateF * dt;
+        s.acc += (this.quality === "high" ? 100 : 60) * rateF * dt;
         while (s.acc >= 1) {
           s.acc -= 1;
           const a = this.rand() * Math.PI * 2;
-          const sp = this._rr(0.6, 3.2);
+          const sp = this._rr(0.8, 4.2);
           const col = this._pick(this.sparkCols);
           this._pfxSpark(
             v.x,
@@ -3322,6 +3442,22 @@ export class Festival {
             this._rr(0.5, 1.15),
             0.7,
           );
+          // heavy golden chunks that arc down and die on the ground
+          if (this.rand() < 0.22) {
+            this._pfxSpark(
+              v.x,
+              v.y,
+              v.z,
+              Math.cos(a) * sp * 0.55,
+              this._rr(-1.4, 0.4),
+              Math.sin(a) * sp * 0.55,
+              1,
+              this._rr(0.88, 1),
+              0.62,
+              this._rr(0.8, 1.8),
+              2.3,
+            );
+          }
         }
         if (this.rand() < dt * 2.5)
           this._puff(v.x, v.y, v.z, 0.22, this._rr(0.8, 1.4), 0.3);

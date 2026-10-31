@@ -192,7 +192,7 @@ export const FIREWORKS = [
     price: 30,
     maxStack: 99,
     icon: "phuljhadi",
-    duration: 6,
+    duration: 7,
     tagline: "Handheld sparkler",
     desc: "Carry a glowing sparkler that trails light as you walk.",
   },

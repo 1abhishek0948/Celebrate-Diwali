@@ -650,7 +650,7 @@ class Game {
     const fw = this.world.festival;
     if (!fw) return;
     if (m.kind === "handheld") {
-      const dur = Number(m.dur) > 0 ? Number(m.dur) : 6;
+      const dur = Number(m.dur) > 0 ? Number(m.dur) : 7;
       if (m.id === this.id) {
         if (this.rig) fw.attachSparkler(this.id, this.rig, dur);
       } else {
