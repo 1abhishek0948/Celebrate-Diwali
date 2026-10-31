@@ -70,6 +70,8 @@ npm run build
 npx vercel --prod
 ```
 
+To preview only that static site locally, run `npm run start:site`.
+
 You can alternatively connect the repository in the Vercel dashboard. Every
 push to the production branch will then deploy automatically. The site uses no
 environment variables, database, or paid Vercel feature.

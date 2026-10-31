@@ -9,8 +9,9 @@
   },
   "scripts": {
     "build": "node tools/verify-static-site.js",
-    "start": "node tools/static-server.js",
+    "start": "node server/index.js",
     "start:game": "node server/index.js",
+    "start:site": "node tools/static-server.js",
     "test": "node --test tests/*.test.js",
     "loadtest": "node tools/loadtest.js"
   },
