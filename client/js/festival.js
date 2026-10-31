@@ -2024,7 +2024,7 @@ export class Festival {
     this.fwPoints = new THREE.Points(
       g,
       new THREE.PointsMaterial({
-        size: 3.6,
+        size: 4.4,
         map: this._softTexture(32, [
           [0, "rgba(255,255,255,1)"],
           [0.4, "rgba(255,255,255,0.5)"],
@@ -2448,9 +2448,9 @@ export class Festival {
     this.fwPoints.geometry.attributes.color.needsUpdate = true;
     // flash lights decay
     this.fwFlash = Math.max(0, this.fwFlash - dt * 3.2);
-    this.fwLight.intensity = this.fwFlash * 2.4;
+    this.fwLight.intensity = this.fwFlash * 3.4;
     this.sparkFlash = Math.max(0, this.sparkFlash - dt * 4.5);
-    this.sparkLight.intensity = this.sparkFlash * 1.6;
+    this.sparkLight.intensity = this.sparkFlash * 2.4;
   }
 
   // ------------------------------------------------------------------- smoke --
@@ -2961,7 +2961,7 @@ export class Festival {
     this.pfxSparkPoints = new THREE.Points(
       g,
       new THREE.PointsMaterial({
-        size: 0.3,
+        size: 0.36,
         map: this._softTexture(32, [
           [0, "rgba(255,255,255,1)"],
           [0.4, "rgba(255,255,255,0.5)"],

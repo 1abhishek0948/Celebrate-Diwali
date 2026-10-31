@@ -57,7 +57,7 @@ class RemotePlayer {
     this.id = data.id;
     this.name = data.name;
     this.rig = new CharacterRig(
-      data.av || { g: 1, b: 0, h: 1, y: 0, o: 0, e: 0, s: 2, p: 3 },
+      data.av || { g: 1, b: 0, h: 1, y: 0, e: 0 },
       data.name,
       opts,
     );
@@ -149,7 +149,7 @@ class Game {
     this.roomType = null;
     this.playing = false;
     this.remotePlayers = new Map();
-    this.previewAv = { b: 0, h: 1, e: 0, s: 2, p: 3 };
+    this.previewAv = { g: 1, b: 0, h: 1, y: 0, e: 0 };
     this.seq = 0;
     this._lastSend = 0;
     this.myHouseId = null;
@@ -208,7 +208,7 @@ class Game {
     // silhouettes.
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.3;
+    this.renderer.toneMappingExposure = 1.5;
     // real character shadows (the moon light casts; see _enableWorldShadows)
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -337,7 +337,7 @@ class Game {
         l.hemi.intensity = 1.05;
         l.moon.intensity = 0.72;
         l.warmFill.intensity = 0.62;
-        this.renderer.toneMappingExposure = 1.3;
+        this.renderer.toneMappingExposure = 1.5;
         this.scene.background.setHex(0x151a38);
         this.scene.fog.color.setHex(0x292d52);
       }
