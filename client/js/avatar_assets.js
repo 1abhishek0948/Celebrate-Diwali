@@ -5,19 +5,17 @@
 // set of retargeted motion-capture clips are vendored under /assets. They are
 // loaded ONCE per URL and shared: every player gets a SkeletonUtils.clone()
 // of the avatar template and references the same AnimationClips, textures and
-// untinted materials. Per-player appearance (skin tone / hair / outfit colors)
-// is applied by cloning the few tintable materials per instance.
+// untinted materials. Per-player appearance (skin tone / hair) is applied by
+// cloning the few tintable materials per instance; clothing keeps the clean
+// default colors baked into the GLBs.
 //
 // Avatar appearance object (server-checked ints, unchanged wire format):
 //   g  gender: 0 feminine, 1 masculine    (missing -> 1, legacy profiles)
 //   b  skin tone index (SKIN)             -> Wolf3D_Skin + Wolf3D_Body tint
 //   h  hair color index (HAIRS)           -> Wolf3D_Hair tint (darken only)
 //   y  hairstyle index 0-2                -> avatar variant within the gender set
-//   o  outfit index 0-2                   -> accessory set (dhaka topi for o===2)
 //   e  eyewear index 0-2 (none/glasses/sunglasses) -> Glasses mesh if the
 //      chosen variant has one baked in
-//   s  main fabric color index (CLOTH)    -> Wolf3D_Outfit_Top tint
-//   p  accent fabric color index (CLOTH)  -> Wolf3D_Outfit_Bottom tint
 //
 // Asset sources & licenses: see docs/LICENSES.md and tools/fetch-assets.sh.
 // ---------------------------------------------------------------------------
@@ -29,8 +27,6 @@ import * as SkeletonUtils from '/vendor/SkeletonUtils.js';
 export const SKIN = [0xf2c29b, 0xe6a774, 0xc98a5e, 0x8d5a3c, 0x66412a, 0xd9a06e, 0xb87a4e, 0x7a4a2e];
 // natural hair colors
 export const HAIRS = [0x1d1410, 0x2c1d12, 0x4a3220, 0x6b4a28, 0x8a6236, 0x3d2e20, 0x24201c, 0x554433];
-// rich festival fabrics: maroon, red, royal blue, emerald, purple, cream, teal, magenta
-export const CLOTH = [0x7a1f2b, 0xc22b3a, 0x2b4ea2, 0x1f7a4d, 0x6b3fa0, 0xf3e6c8, 0x1f7fa8, 0xb23a67];
 
 export const GOLD = 0xd9a441;
 // shadowed cloth tones for the procedural fallback rig
@@ -66,8 +62,6 @@ const ANIM_URLS = {
 const BAKED = {
   skin: new THREE.Color(0xe8b49c),
   hair: new THREE.Color(0x4a3524),
-  top: new THREE.Color(0xd8d4cc),
-  bottom: new THREE.Color(0x5a6068),
 };
 
 const loader = new GLTFLoader();
@@ -214,9 +208,10 @@ export async function instantiateAvatar(av) {
   const root = SkeletonUtils.clone(tpl.root);
   root.updateMatrixWorld(true);
 
-  // clone the materials this instance recolors (textures stay shared)
+  // clone the materials this instance recolors (textures stay shared);
+  // clothing is left untinted so every avatar keeps its default baked outfit
   const tintable = {};
-  for (const name of ['Wolf3D_Skin', 'Wolf3D_Body', 'Wolf3D_Hair', 'Wolf3D_Outfit_Top', 'Wolf3D_Outfit_Bottom', 'Wolf3D_Outfit_Footwear']) {
+  for (const name of ['Wolf3D_Skin', 'Wolf3D_Body', 'Wolf3D_Hair']) {
     const src = tpl.materials[name];
     if (src) {
       const m = src.clone();
@@ -240,14 +235,9 @@ export async function instantiateAvatar(av) {
   // appearance -> material tints
   const skinT = SKIN[(av.b ?? 0) % SKIN.length];
   const hairT = HAIRS[(av.h ?? 1) % HAIRS.length];
-  const mainT = CLOTH[(av.s ?? 2) % CLOTH.length];
-  const accT = CLOTH[(av.p ?? 3) % CLOTH.length];
   if (tintable.Wolf3D_Skin) tintInstance(tintable.Wolf3D_Skin, skinT, BAKED.skin);
   if (tintable.Wolf3D_Body) tintInstance(tintable.Wolf3D_Body, skinT, BAKED.skin);
   if (tintable.Wolf3D_Hair) tintInstance(tintable.Wolf3D_Hair, hairT, BAKED.hair);
-  if (tintable.Wolf3D_Outfit_Top) tintable.Wolf3D_Outfit_Top.color.set(mainT);
-  if (tintable.Wolf3D_Outfit_Bottom) tintable.Wolf3D_Outfit_Bottom.color.set(accT);
-  if (tintable.Wolf3D_Outfit_Footwear) tintable.Wolf3D_Outfit_Footwear.color.set(0x2c2f36);
 
   // eyewear: hide the baked glasses unless requested; dark lens for sunglasses.
   // The template's glasses material is shared, so clone per instance first.

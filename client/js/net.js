@@ -1,11 +1,11 @@
 // ---------------------------------------------------------------------------
-// NewBuddy client network layer.
+// DiwalyMeetUp client network layer.
 //  - JSON-over-WebSocket protocol (same messages the server tests exercise)
 //  - session resume via device token (reconnect keeps player id + room)
 //  - server clock estimation for snapshot interpolation (ping/pong)
 // ---------------------------------------------------------------------------
-const TOKEN_KEY = "NewBuddy.token";
-const PROFILE_KEY = "NewBuddy.profile";
+const TOKEN_KEY = "DiwalyMeetUp.token";
+const PROFILE_KEY = "DiwalyMeetUp.profile";
 
 export function deviceToken() {
   let t = localStorage.getItem(TOKEN_KEY);

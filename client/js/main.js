@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// NewBuddy main client: three.js scene + game loop + net glue.
+// DiwalyMeetUp main client: three.js scene + game loop + net glue.
 // ---------------------------------------------------------------------------
 import * as THREE from "three";
 import { CSS2DRenderer } from "/vendor/CSS2DRenderer.js";
@@ -26,8 +26,8 @@ const $ = (id) => document.getElementById(id);
 // It is NEVER trusted for a transaction — the server prices and validates every
 // buy/use, then replies with the authoritative wallet.
 // ---------------------------------------------------------------------------
-const WALLET_KEY = "NewBuddy.wallet";
-const EQUIPPED_KEY = "NewBuddy.equipped";
+const WALLET_KEY = "DiwalyMeetUp.wallet";
+const EQUIPPED_KEY = "DiwalyMeetUp.equipped";
 
 function loadWalletCache() {
   try {
@@ -208,7 +208,7 @@ class Game {
     // silhouettes.
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.5;
+    this.renderer.toneMappingExposure = 1.7;
     // real character shadows (the moon light casts; see _enableWorldShadows)
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -327,7 +327,7 @@ class Game {
         l.hemi.intensity = 1.45;
         l.moon.intensity = 0.28;
         l.warmFill.intensity = 0.9;
-        this.renderer.toneMappingExposure = 1.15;
+        this.renderer.toneMappingExposure = 1.2;
         this.scene.background.setHex(0x8fc7e8);
         this.scene.fog.color.setHex(0x9fc8dc);
       } else {
@@ -337,7 +337,7 @@ class Game {
         l.hemi.intensity = 1.05;
         l.moon.intensity = 0.72;
         l.warmFill.intensity = 0.62;
-        this.renderer.toneMappingExposure = 1.5;
+        this.renderer.toneMappingExposure = 1.7;
         this.scene.background.setHex(0x151a38);
         this.scene.fog.color.setHex(0x292d52);
       }
@@ -376,8 +376,10 @@ class Game {
       knob = $("joy-knob");
     if (!("ontouchstart" in window) || !joy) return;
     const R = 50;
-    const handle = (e) => {
-      const t = e.touches[0];
+    // Track the joystick's own touch id so a second finger (jump / camera /
+    // interact) never steals or resets the movement vector (multi-touch).
+    let joyId = null;
+    const move = (t) => {
       const r = joy.getBoundingClientRect();
       const dx = THREE.MathUtils.clamp(
         t.clientX - (r.left + r.width / 2),
@@ -391,41 +393,129 @@ class Game {
       );
       knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
       this.controller.setJoystick(dx / R, dy / R, true);
-      e.preventDefault();
     };
-    joy.addEventListener("touchstart", handle, { passive: false });
-    joy.addEventListener("touchmove", handle, { passive: false });
-    joy.addEventListener("touchend", () => {
-      knob.style.transform = "translate(-50%,-50%)";
-      this.controller.setJoystick(0, 0, false);
-    });
-    $("btn-jump").addEventListener(
+    joy.addEventListener(
       "touchstart",
       (e) => {
-        this.controller.joy.jump = true;
+        if (joyId === null) {
+          const t = e.changedTouches[0];
+          joyId = t.identifier;
+          move(t);
+        }
         e.preventDefault();
       },
       { passive: false },
     );
+    joy.addEventListener(
+      "touchmove",
+      (e) => {
+        for (const t of e.changedTouches) {
+          if (t.identifier === joyId) move(t);
+        }
+        e.preventDefault();
+      },
+      { passive: false },
+    );
+    const release = (e) => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === joyId) {
+          joyId = null;
+          knob.style.transform = "translate(-50%,-50%)";
+          this.controller.setJoystick(0, 0, false);
+        }
+      }
+    };
+    joy.addEventListener("touchend", release);
+    joy.addEventListener("touchcancel", release);
+
+    // jump: press-and-hold works; release clears so landing doesn't re-jump
+    const jumpBtn = $("btn-jump");
+    jumpBtn.addEventListener(
+      "touchstart",
+      (e) => {
+        this.controller.joy.jump = true;
+        jumpBtn.classList.add("pressed");
+        e.preventDefault();
+      },
+      { passive: false },
+    );
+    const jumpUp = () => jumpBtn.classList.remove("pressed");
+    jumpBtn.addEventListener("touchend", jumpUp);
+    jumpBtn.addEventListener("touchcancel", jumpUp);
+
+    // interact (E) button — only visible while the world offers a prompt
+    const useBtn = $("btn-use");
+    if (useBtn) {
+      useBtn.addEventListener(
+        "touchstart",
+        (e) => {
+          if (this.controller.hoverInteract) {
+            this.controller.activate(this.controller.hoverInteract);
+          }
+          e.preventDefault();
+        },
+        { passive: false },
+      );
+    }
   }
 
   // ------------------------------------------------------ economy / hotkeys ---
+  // Every HUD button has a desktop shortcut; they never fire while typing and
+  // gameplay shortcuts are suppressed while a modal (shop/inventory/settings)
+  // is open. Escape always backs out of whatever is on top.
   _wireEconomyKeys() {
     addEventListener("keydown", (e) => {
-      if (e.target.closest && e.target.closest("input, textarea")) return;
       if (e.repeat) return;
-      if (e.code === "KeyI") {
-        if (this.ui.current === "shop") return;
-        e.preventDefault();
-        this.ui.toggleInventory();
-      } else if (e.code === "KeyF") {
-        if (this.ui.current === "shop" || this.ui.current === "inventory")
-          return;
-        e.preventDefault();
-        this.useEquipped();
-      } else if (e.code === "Escape") {
-        this.ui.closeShop();
-        this.ui.closeInventory();
+      if (e.target.closest && e.target.closest("input, textarea")) return;
+      const ui = this.ui;
+      const modalOpen =
+        ui.current === "shop" ||
+        ui.current === "inventory" ||
+        ui.current === "settings";
+      if (e.code === "Escape") {
+        ui.closeShop();
+        ui.closeInventory();
+        ui.closePanels();
+        const menu = $("player-menu");
+        if (menu) menu.remove();
+        return;
+      }
+      if (modalOpen) return;
+      switch (e.code) {
+        case "KeyI":
+          e.preventDefault();
+          if (ui.current !== "shop") ui.toggleInventory();
+          break;
+        case "KeyF":
+          e.preventDefault();
+          this.useEquipped();
+          break;
+        case "KeyE": // handled in controller when a prompt is hovered
+          break;
+        case "Digit1":
+          ui.showPlaying(() => this.controller.playEmote("wave"));
+          break;
+        case "Digit2":
+          ui.showPlaying(() => this.controller.playEmote("dance"));
+          break;
+        case "Digit3":
+          ui.showPlaying(() => this.controller.playEmote("greet"));
+          break;
+        case "KeyP":
+          ui.showPlaying(() => ui.togglePlayers());
+          break;
+        case "KeyB":
+          ui.showPlaying(() => ui.toggleFriends());
+          break;
+        case "KeyV":
+          ui.showPlaying(() => ui.toggleVoice());
+          break;
+        case "KeyT":
+          ui.showPlaying(() => $("btn-timeofday").click());
+          break;
+        case "KeyG":
+          ui.showPlaying(() => ui.toggleFullscreen());
+          break;
       }
     });
   }
@@ -733,7 +823,6 @@ class Game {
     this.myHouseId = w.house;
     this.voice.setSelf(w.id);
     $("hud-name").textContent = w.name;
-    $("hud-room").textContent = w.room;
     this.ui.setRoomLabel(w.room, w.roomType);
 
     // local rig
@@ -751,7 +840,7 @@ class Game {
     }
     this.rig.setName(w.name);
     if (w.roomType === "island") {
-      this.world.showIsland();
+      this.world.showisland();
     } else {
       this.world.showInterior(this.room.split(":")[1]);
     }
@@ -772,7 +861,7 @@ class Game {
     this.controller.roomId = m.room;
     this.world.festival?.detachSparkler?.(this.id);
     if (m.roomType === "island") {
-      this.world.showIsland();
+      this.world.showisland();
       if (m.plot) {
         this.controller.pos.set(m.x, m.y, m.z);
       }
@@ -784,7 +873,7 @@ class Game {
     this._enableWorldShadows();
     this.controller.roomType = m.roomType;
     this.controller.roomId = m.room;
-    $("hud-room").textContent = m.room;
+    this.ui.setRoomLabel(m.room, m.roomType);
     this.controller.pos.set(m.x, m.y, m.z);
   }
 
@@ -873,4 +962,4 @@ class Game {
 class UIWithFreq extends UI {}
 void UIWithFreq;
 
-window.__NewBuddy = new Game();
+window.__DiwalyMeetUp = new Game();

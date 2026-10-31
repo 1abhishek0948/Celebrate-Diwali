@@ -12,18 +12,17 @@
 //   3 air and emoteNow = {e:'wave'|'dance'|'greet', started: rig.t} | null.
 //
 // Appearance ints (wire format unchanged, see avatar_assets.js):
-//   g gender, b skin, h hair color, y hairstyle->avatar variant,
-//   o outfit, e eyewear, s/p outfit fabric colors.
+//   g gender, b skin, h hair color, y hairstyle->avatar variant, e eyewear.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { CSS2DObject } from '/vendor/CSS2DRenderer.js';
 import { WALK_SPEED, RUN_SPEED } from '../shared/constants.js';
 import {
-  SKIN, HAIRS, CLOTH, GOLD, DARK,
+  SKIN, HAIRS, GOLD, DARK,
   loadAnimationSet, instantiateAvatar, makeAvatarHolder,
 } from './avatar_assets.js';
 
-export { SKIN, HAIRS, CLOTH, GOLD };
+export { SKIN, HAIRS };
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smoothstep = (a, b, x) => {
@@ -447,14 +446,13 @@ class ProceduralRig {
     this.root.add(this.body);
 
     const skinM = new THREE.MeshLambertMaterial({ color: P.skin });
-    const mainM = new THREE.MeshLambertMaterial({ color: P.main });
-    const accM = new THREE.MeshLambertMaterial({ color: P.accent });
+    // clean default clothing colors (no outfit customization)
+    const mainM = new THREE.MeshLambertMaterial({ color: 0xd8d4cc });
     const hairM = new THREE.MeshLambertMaterial({ color: P.hair });
     const goldM = new THREE.MeshLambertMaterial({ color: GOLD });
-    const maleDark = new THREE.Color(0x23262e).lerp(new THREE.Color(P.accent), 0.18);
-    const darkM = new THREE.MeshLambertMaterial({ color: this.female ? DARK[av.o % DARK.length] : maleDark });
-    this.materials = new Set([skinM, mainM, accM, hairM, goldM, darkM]);
-    Object.assign(this, { skinM, mainM, accM, hairM, goldM, darkM });
+    const darkM = new THREE.MeshLambertMaterial({ color: DARK[0] });
+    this.materials = new Set([skinM, mainM, hairM, goldM, darkM]);
+    Object.assign(this, { skinM, mainM, hairM, goldM, darkM });
     this.palette = P;
     this.followHands = true;
 
@@ -696,12 +694,6 @@ class ProceduralRig {
       this.body.add(leg.root);
     }
 
-    // ---- festival outfits ---------------------------------------------------
-    this.skirt = null;
-    const o = av.o === undefined ? 0 : (av.o % 3);
-    if (F) this._buildFemaleOutfit(o, mainM, accM, goldM, darkM);
-    else this._buildMaleOutfit(o);
-
     // animation state
     this.t = 0;
     this.gaitPhase = 0;
@@ -712,132 +704,6 @@ class ProceduralRig {
     this._targets = new Map();
     this.speedEma = 0;
     this._blinkAt = 1.5;
-  }
-
-  _buildFemaleOutfit(o, mainM, accM, goldM, darkM) {
-    for (const arm of [this.armL, this.armR]) {
-      for (const dy of [0.012, -0.012]) {
-        const b = new THREE.Mesh(G.bangle, goldM);
-        b.rotation.x = Math.PI / 2;
-        b.position.y = dy;
-        arm.tip.add(b);
-      }
-    }
-    const necklace = new THREE.Mesh(G.necklace, goldM);
-    necklace.rotation.x = Math.PI / 2 - 0.35;
-    necklace.position.set(0, 1.52, -0.06);
-    this.body.add(necklace);
-
-    if (o === 0) {
-      const skirt = new THREE.Mesh(G.skirt, accM);
-      skirt.position.y = 0.5;
-      const trim = new THREE.Mesh(G.skirtTrim, goldM);
-      trim.position.y = 0.06;
-      const pallu = new THREE.Mesh(G.sash, accM);
-      pallu.position.set(0.05, 1.28, -0.135);
-      pallu.rotation.z = 0.5;
-      const palluTrim = new THREE.Mesh(new THREE.BoxGeometry(0.104, 0.52, 0.006), goldM);
-      palluTrim.position.set(0, -0.02, 0.014);
-      pallu.add(palluTrim);
-      this.skirt = skirt;
-      this.body.add(skirt, trim, pallu);
-    } else if (o === 1) {
-      const kurta = new THREE.Mesh(G.kurta, mainM);
-      kurta.position.y = 0.98;
-      for (const sx of [-1, 1]) {
-        const drape = new THREE.Mesh(G.dupatta, accM);
-        drape.position.set(sx * 0.1, 1.22, -0.115);
-        drape.rotation.z = sx * -0.08;
-        this.body.add(drape);
-      }
-      this.body.add(kurta);
-    } else {
-      const skirt = new THREE.Mesh(G.skirtLong, accM);
-      skirt.position.y = 0.5;
-      const trim = new THREE.Mesh(G.skirtTrimLong, goldM);
-      trim.position.y = 0.06;
-      const sash = new THREE.Mesh(G.sash, mainM);
-      sash.position.set(-0.05, 1.28, -0.135);
-      sash.rotation.z = -0.5;
-      this.skirt = skirt;
-      this.body.add(skirt, trim, sash);
-    }
-  }
-
-  _buildMaleOutfit(o) {
-    const { mainM, accM, goldM, darkM } = this;
-    const t = { y0: 0.97, y1: 1.63, r: 0.17, depth: 0.17 };
-    const cy = (t.y0 + t.y1) / 2;
-    const H = t.y1 - t.y0;
-
-    const tunic = (mat, radTop, y, height) => {
-      const m = new THREE.Mesh(G.kurta, mat);
-      const s = radTop / 0.165;
-      m.scale.set(s, height / 0.72, s);
-      m.position.y = y;
-      this.body.add(m);
-      return m;
-    };
-    const belt = (mat) => {
-      const m = new THREE.Mesh(G.skirtTrim, mat);
-      const s = (t.r * 1.3) / 0.2575;
-      m.scale.set(s, 0.09 / 0.055, s);
-      m.position.y = t.y0 + 0.075;
-      this.body.add(m);
-    };
-    const buttons = (mat, z) => {
-      for (let k = 0; k < 4; k++) {
-        const b = new THREE.Mesh(G.button, mat);
-        b.position.set(0, cy - 0.02 + k * (H * 0.6) / 3, z);
-        this.body.add(b);
-      }
-    };
-
-    const dauraTop = t.r * 1.04;
-    const buttonZ = -(t.r * 1.5);
-    this._trousers(darkM);
-
-    if (o === 0) {
-      tunic(mainM, dauraTop, cy - 0.04, H + 0.14);
-      tunic(accM, dauraTop * 1.14, cy + 0.12, H * 0.72);
-      belt(accM);
-      buttons(accM, buttonZ);
-    } else if (o === 1) {
-      tunic(mainM, t.r * 1.05, cy - 0.15, H + 0.36);
-      const shawl = new THREE.Mesh(G.dupatta, accM);
-      shawl.scale.set(1.15, 1.2, 1);
-      shawl.position.set(t.r * 0.66, cy + 0.08, -t.depth * 0.72);
-      shawl.rotation.z = 0.42;
-      this.body.add(shawl);
-      buttons(accM, -(t.r * 1.42));
-    } else {
-      tunic(mainM, dauraTop, cy - 0.04, H + 0.14);
-      belt(accM);
-      buttons(goldM, buttonZ);
-      const crown = 0.173;
-      const band = new THREE.Mesh(G.topiBand, darkM);
-      band.position.y = crown - 0.015;
-      const topi = new THREE.Mesh(G.topi, mainM);
-      topi.position.y = crown + 0.03;
-      this.head.add(band, topi);
-    }
-  }
-
-  _trousers(mat) {
-    const rU = 0.06 + 0.15 * 0.2;
-    const rL = rU * 0.9;
-    for (const leg of [this.legL, this.legR]) {
-      const upper = leg.mid.position.length();
-      const lower = leg.tip.position.length();
-      const a = new THREE.Mesh(G.trouser, mat);
-      a.scale.set(rU / 0.05, (upper * 1.04) / 1, rU / 0.05);
-      a.position.y = -upper * 0.5;
-      leg.root.add(a);
-      const b = new THREE.Mesh(G.trouser, mat);
-      b.scale.set(rL / 0.05, (lower * 1.04) / 1, rL / 0.05);
-      b.position.y = -lower * 0.5;
-      leg.mid.add(b);
-    }
   }
 
   setName(name) {
@@ -956,7 +822,6 @@ class ProceduralRig {
     }
 
     const sway = moving ? Math.sin(cyc) * 0.07 : Math.sin(this.t * 1.3) * 0.015;
-    if (this.skirt) this.skirt.rotation.z += (sway - this.skirt.rotation.z) * 0.25;
     if (this.hairBack) this.hairBack.rotation.x += (sway * 0.6 - this.hairBack.rotation.x) * 0.2;
 
     this.setPart(this.armL.root, shoulderL, 0, shoulderZL);
@@ -1064,7 +929,6 @@ const G = {
   mouthInner: new THREE.SphereGeometry(0.05, 14, 10),
   ear: new THREE.SphereGeometry(0.04, 10, 8),
   cheek: new THREE.SphereGeometry(0.035, 10, 8),
-  button: new THREE.SphereGeometry(0.012, 8, 6),
   hairTop: new THREE.SphereGeometry(0.172, 18, 12, 0, Math.PI * 2, 0, 1.02),
   hairSide: new THREE.SphereGeometry(
     0.172, 18, 14, Math.PI * 1.5 + 0.78, Math.PI * 2 - 1.56, 0.5, 1.16,
@@ -1075,25 +939,12 @@ const G = {
   torso: null,
   hip: null,
   limbSeg: new THREE.CylinderGeometry(0.05, 0.042, 1, 8),
-  trouser: new THREE.CylinderGeometry(0.05, 0.05, 1, 8),
   hand: new THREE.SphereGeometry(0.052, 8, 7),
   palm: new THREE.BoxGeometry(0.074, 0.105, 0.045),
   finger: new THREE.CapsuleGeometry(0.011, 0.038, 4, 6),
   shoe: new THREE.BoxGeometry(0.12, 0.075, 0.25),
   sole: new THREE.BoxGeometry(0.125, 0.018, 0.255),
-  skirt: new THREE.CylinderGeometry(0.17, 0.25, 0.98, 10),
-  skirtLong: new THREE.CylinderGeometry(0.18, 0.34, 0.95, 10),
-  skirtTrim: new THREE.CylinderGeometry(0.255, 0.26, 0.055, 10),
-  skirtTrimLong: new THREE.CylinderGeometry(0.345, 0.35, 0.06, 10),
-  kurta: new THREE.CylinderGeometry(0.165, 0.2, 0.72, 9),
-  coat: new THREE.CylinderGeometry(0.185, 0.155, 0.44, 9),
-  sash: new THREE.BoxGeometry(0.1, 0.52, 0.022),
-  dupatta: new THREE.BoxGeometry(0.08, 0.42, 0.02),
-  bangle: new THREE.TorusGeometry(0.048, 0.009, 6, 12),
-  necklace: new THREE.TorusGeometry(0.075, 0.011, 6, 14),
   earring: new THREE.SphereGeometry(0.016, 6, 5),
-  topi: new THREE.CylinderGeometry(0.075, 0.115, 0.13, 9),
-  topiBand: new THREE.CylinderGeometry(0.108, 0.117, 0.03, 9),
 };
 
 G.torsoM = new THREE.CapsuleGeometry(0.17, 0.32, 8, 14);
@@ -1125,8 +976,6 @@ function palette(av) {
     gender: av.g === undefined ? 1 : (av.g ? 1 : 0),
     skin: SKIN[av.b % SKIN.length],
     hair: HAIRS[av.h % HAIRS.length],
-    main: CLOTH[av.s % CLOTH.length],
-    accent: CLOTH[av.p % CLOTH.length],
   };
 }
 

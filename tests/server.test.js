@@ -1,10 +1,10 @@
 // ---------------------------------------------------------------------------
-// NewBuddy server integration tests (node:test).
+// DiwalyMeetUp server integration tests (node:test).
 // Spins up a real server on a test port and drives it via WebSocket bots:
 //   welcome/join + snapshots, wall-clock speed clamp + packet-spam guard,
 //   chat + flood limits, friends presence, house claim / lock modes / invites,
 //   session takeover on duplicate login and joinRoom travel.
-// Test-only teleport: NewBuddy_ALLOW_TELEPORT=1 (explicit, off in production).
+// Test-only teleport: DiwalyMeetUp_ALLOW_TELEPORT=1 (explicit, off in production).
 // Run: npm test
 // ---------------------------------------------------------------------------
 import { test, before, after } from "node:test";
@@ -19,7 +19,7 @@ import WebSocket from "ws";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 3999;
 const URL = `ws://localhost:${PORT}`;
-const TMP_DATA = path.join(os.tmpdir(), `NewBuddy-srv-${process.pid}`);
+const TMP_DATA = path.join(os.tmpdir(), `DiwalyMeetUp-srv-${process.pid}`);
 
 let proc = null;
 
@@ -31,7 +31,7 @@ async function startServer() {
       env: {
         ...process.env,
         PORT: String(PORT),
-        NewBuddy_ALLOW_TELEPORT: "1",
+        DiwalyMeetUp_ALLOW_TELEPORT: "1",
         DATA_DIR: TMP_DATA,
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -131,7 +131,7 @@ function TOKEN(ch, n = 0) {
 async function login(token, name, av) {
   const c = connect();
   await c.opened;
-  c.send({ t: "hello", token, name, av: av || { b: 0, h: 1, s: 2, p: 3 } });
+  c.send({ t: "hello", token, name, av: av || { b: 0, h: 1 } });
   const w = await c.next((m) => m.t === "welcome", 6000);
   return {
     send: c.send,
@@ -144,7 +144,7 @@ async function login(token, name, av) {
   };
 }
 
-// test-only teleport (server gated by NewBuddy_ALLOW_TELEPORT=1)
+// test-only teleport (server gated by DiwalyMeetUp_ALLOW_TELEPORT=1)
 function tp(c, x, z) {
   c.send({
     t: "st",

@@ -102,7 +102,7 @@ const shot = async (name) => {
 };
 const stepPfx = (n = 30, dt = 0.016) =>
   evalJs(`(() => {
-  const f=window.__NewBuddy.world.festival;
+  const f=window.__DiwalyMeetUp.world.festival;
   for (let i=0;i<${n};i++) f._updatePlayerFx(${dt});
   return true;
 })()`);
@@ -115,7 +115,7 @@ const check = (name, cond, extra) => {
   if (!cond) fails++;
 };
 const state = () =>
-  evalJs(`(() => { const g=window.__NewBuddy; return {
+  evalJs(`(() => { const g=window.__DiwalyMeetUp; return {
   balance: g.wallet.balance, inv: {...g.wallet.inventory}, equipped: g.equipped,
   ready: g.wallet.ready, current: g.ui.current, playing: g.playing,
   props: g.world.festival?.pfxProps.length ?? -1,
@@ -125,13 +125,13 @@ const state = () =>
 }; })()`);
 
 // ---- boot + enter world -----------------------------------------------------
-check("game booted", await evalJs("!!window.__NewBuddy"));
+check("game booted", await evalJs("!!window.__DiwalyMeetUp"));
 await evalJs(
-  `window.__NewBuddy.setName('EcoE2E'); window.__NewBuddy.enterWorld(); 'ok'`,
+  `window.__DiwalyMeetUp.setName('EcoE2E'); window.__DiwalyMeetUp.enterWorld(); 'ok'`,
 );
 check(
   "wallet ready after enter",
-  await waitFor("window.__NewBuddy.wallet.ready", 6000),
+  await waitFor("window.__DiwalyMeetUp.wallet.ready", 6000),
 );
 let s = await state();
 check(
@@ -142,14 +142,14 @@ check(
 check("quick bar hidden while bag empty", s.bar === false, s);
 
 // walk up to the south firecracker shop (teleport for test speed)
-await evalJs(`(() => { const g=window.__NewBuddy;
+await evalJs(`(() => { const g=window.__DiwalyMeetUp;
   g.controller.pos.set(22,0,-113.5); g.controller.vel?.set(0,0,0);
   g.controller.yaw = Math.PI; g.controller.camYaw = 0; g.controller.camPitch = 0.2; g.controller.camDist = 8;
   return true; })()`);
 check(
   "shop interaction prompt appears",
   await waitFor(
-    `(() => { const h=window.__NewBuddy.controller.hoverInteract; return !!h && h.kind==='shop' && h.id==='fireworks'; })()`,
+    `(() => { const h=window.__DiwalyMeetUp.controller.hoverInteract; return !!h && h.kind==='shop' && h.id==='fireworks'; })()`,
     3000,
   ),
 );
@@ -158,7 +158,7 @@ await shot("01-shop-exterior");
 check(
   "fountain/obstacle placement blocked, open path allowed",
   await evalJs(
-    `(() => { const g=window.__NewBuddy; return g._spotFree(0,0)===false && g._spotFree(22,-126)===false && g._spotFree(22,-113)===true; })()`,
+    `(() => { const g=window.__DiwalyMeetUp; return g._spotFree(0,0)===false && g._spotFree(22,-126)===false && g._spotFree(22,-113)===true; })()`,
   ),
 );
 
@@ -168,11 +168,11 @@ await evalJs(
 );
 check(
   "E opens the shop modal",
-  await waitFor(`window.__NewBuddy.ui.current === 'shop'`, 2000),
+  await waitFor(`window.__DiwalyMeetUp.ui.current === 'shop'`, 2000),
 );
 check(
   "shop is input-locked",
-  await evalJs("window.__NewBuddy.controller.locked === true"),
+  await evalJs("window.__DiwalyMeetUp.controller.locked === true"),
 );
 check(
   "shop renders all 7 catalog cards",
@@ -202,7 +202,7 @@ async function clickBuy(item, qtyPill = null) {
 await clickBuy("combo");
 check(
   "combo purchase lands (510 left)",
-  await waitFor("window.__NewBuddy.wallet.balance === 510", 4000),
+  await waitFor("window.__DiwalyMeetUp.wallet.balance === 510", 4000),
 );
 s = await state();
 check(
@@ -223,7 +223,7 @@ check(
 await clickBuy("anar", 1);
 check(
   "anar x5 purchase lands (310 left)",
-  await waitFor("window.__NewBuddy.wallet.balance === 310", 4000),
+  await waitFor("window.__DiwalyMeetUp.wallet.balance === 310", 4000),
 );
 s = await state();
 check("anar stacks to 7", s.inv.anar === 7, s.inv);
@@ -232,17 +232,17 @@ check("anar stacks to 7", s.inv.anar === 7, s.inv);
 await clickBuy("chakri");
 check(
   "chakri purchase lands",
-  await waitFor("window.__NewBuddy.wallet.balance === 255", 4000),
+  await waitFor("window.__DiwalyMeetUp.wallet.balance === 255", 4000),
 );
 await clickBuy("rocket");
 check(
   "rocket purchase lands",
-  await waitFor("window.__NewBuddy.wallet.balance === 175", 4000),
+  await waitFor("window.__DiwalyMeetUp.wallet.balance === 175", 4000),
 );
 await clickBuy("aerial");
 check(
   "aerial purchase lands (55 left)",
-  await waitFor("window.__NewBuddy.wallet.balance === 55", 4000),
+  await waitFor("window.__DiwalyMeetUp.wallet.balance === 55", 4000),
 );
 
 // insufficient funds: aerial costs 120 > 55
@@ -271,7 +271,7 @@ await evalJs(`document.querySelector('.shop-close').click()`);
 check(
   "X closes shop + unlocks movement",
   await waitFor(
-    `window.__NewBuddy.ui.current === '__none__' && window.__NewBuddy.controller.locked === false`,
+    `window.__DiwalyMeetUp.ui.current === '__none__' && window.__DiwalyMeetUp.controller.locked === false`,
     1500,
   ),
 );
@@ -284,7 +284,7 @@ await evalJs(
 );
 check(
   "I opens inventory",
-  await waitFor(`window.__NewBuddy.ui.current === 'inventory'`, 1500),
+  await waitFor(`window.__DiwalyMeetUp.ui.current === 'inventory'`, 1500),
 );
 check(
   "inventory lists 5 owned types",
@@ -304,28 +304,28 @@ await evalJs(`(() => { const row=[...document.querySelectorAll('.inv-item')].fin
   row.querySelector('.inv-actions .mini.accent').click(); return true; })()`);
 check(
   "inventory Use closes bag",
-  await waitFor(`window.__NewBuddy.ui.current === '__none__'`, 1500),
+  await waitFor(`window.__DiwalyMeetUp.ui.current === '__none__'`, 1500),
 );
 check(
   "Anar consumed exactly once",
-  await waitFor("window.__NewBuddy.wallet.inventory.anar === 6", 3000),
+  await waitFor("window.__DiwalyMeetUp.wallet.inventory.anar === 6", 3000),
 );
 await sleep(600);
 s = await state();
 check("Anar world prop is live", s.props >= 1, s);
 const anarAt = await evalJs(
-  `(() => { const p=window.__NewBuddy.world.festival.pfxProps.at(-1); return p ? {x:p.x,z:p.z,t:p.t} : null; })()`,
+  `(() => { const p=window.__DiwalyMeetUp.world.festival.pfxProps.at(-1); return p ? {x:p.x,z:p.z,t:p.t} : null; })()`,
 );
 check("Anar prop has a position + age", !!anarAt && anarAt.t > 0, anarAt);
 await stepPfx(35);
 
 // cinematic still of the anar fountain
-await evalJs(`(() => { const g=window.__NewBuddy; g.playing=false;
+await evalJs(`(() => { const g=window.__DiwalyMeetUp; g.playing=false;
   g.camera.position.set(${anarAt?.x ?? 18}+4.5, 3.2, ${anarAt?.z ?? 15}+6.5);
   g.camera.lookAt(${anarAt?.x ?? 18}, 1.0, ${anarAt?.z ?? 15}); return true; })()`);
 await sleep(650);
 await shot("05-anar");
-await evalJs("window.__NewBuddy.playing = true");
+await evalJs("window.__DiwalyMeetUp.playing = true");
 
 // ---- quick bar + F key: sparkler ------------------------------------------
 // drive the FX clock deterministically: headless rAF is throttled, so wall
@@ -333,7 +333,7 @@ await evalJs("window.__NewBuddy.playing = true");
 check(
   "Anar prop cleaned up",
   await evalJs(`(() => {
-  const f=window.__NewBuddy.world.festival;
+  const f=window.__DiwalyMeetUp.world.festival;
   for (let i=0;i<340;i++) f._updatePlayerFx(0.02);
   return f.pfxProps.length === 0;
 })()`),
@@ -343,7 +343,7 @@ await evalJs(`(() => { const slot=[...document.querySelectorAll('#fx-bar .fx-slo
   slot.click(); return true; })()`);
 check(
   "quick-bar click equips Phuljhadi",
-  await evalJs(`window.__NewBuddy.equipped === 'phuljhadi'`),
+  await evalJs(`window.__DiwalyMeetUp.equipped === 'phuljhadi'`),
 );
 check(
   "quick-bar highlights equipped slot",
@@ -357,40 +357,40 @@ await evalJs(
 check(
   "F lights the handheld sparkler",
   await waitFor(
-    `window.__NewBuddy.world.festival.pfxSparklers.has(window.__NewBuddy.id)`,
+    `window.__DiwalyMeetUp.world.festival.pfxSparklers.has(window.__DiwalyMeetUp.id)`,
     2500,
   ),
 );
 check(
   "sparkler consumed once",
-  await waitFor("window.__NewBuddy.wallet.inventory.phuljhadi === 2", 2500),
+  await waitFor("window.__DiwalyMeetUp.wallet.inventory.phuljhadi === 2", 2500),
 );
 s = await state();
 check(
   "sparkler attached to own rig",
-  s.sparklers.includes(await evalJs("window.__NewBuddy.id")),
+  s.sparklers.includes(await evalJs("window.__DiwalyMeetUp.id")),
   s.sparklers,
 );
 await stepPfx(30);
 await sleep(300);
-await evalJs(`(() => { const g=window.__NewBuddy, p=g.controller.pos; g.playing=false;
+await evalJs(`(() => { const g=window.__DiwalyMeetUp, p=g.controller.pos; g.playing=false;
   g.camera.position.set(p.x+2.6, 2.35, p.z+3.7); g.camera.lookAt(p.x, 1.2, p.z); return true; })()`);
 await sleep(450);
 await shot("06-sparkler");
-await evalJs("window.__NewBuddy.playing = true");
+await evalJs("window.__DiwalyMeetUp.playing = true");
 
 // sparkler auto-expires + disposes
 check(
   "sparkler auto-detaches after its duration",
   await evalJs(`(() => {
-  const f=window.__NewBuddy.world.festival;
+  const f=window.__DiwalyMeetUp.world.festival;
   for (let i=0;i<380;i++) f._updatePlayerFx(0.02);
-  return !f.pfxSparklers.has(window.__NewBuddy.id);
+  return !f.pfxSparklers.has(window.__DiwalyMeetUp.id);
 })()`),
 );
 
 // move to an open festival patch for ground/sky effects
-await evalJs(`(() => { const g=window.__NewBuddy;
+await evalJs(`(() => { const g=window.__DiwalyMeetUp;
   g.controller.pos.set(20,0,18); g.controller.vel?.set(0,0,0);
   g.controller.yaw = Math.PI; g.controller.camYaw = 0; g.controller.camPitch = 0.16; g.controller.camDist = 8;
   return true; })()`);
@@ -398,35 +398,35 @@ await sleep(500);
 
 // ---- chakri ----------------------------------------------------------------
 await evalJs(
-  `window.__NewBuddy.equipItem('chakri'); window.__NewBuddy.useEquipped(); 'ok'`,
+  `window.__DiwalyMeetUp.equipItem('chakri'); window.__DiwalyMeetUp.useEquipped(); 'ok'`,
 );
 check(
   "chakri consumed once",
-  await waitFor("window.__NewBuddy.wallet.inventory.chakri === 2", 3000),
+  await waitFor("window.__DiwalyMeetUp.wallet.inventory.chakri === 2", 3000),
 );
 await sleep(500);
 await stepPfx(35);
 s = await state();
 check("chakri spinner is live", s.props >= 1, s);
 const chakriAt = await evalJs(
-  `(() => { const p=window.__NewBuddy.world.festival.pfxProps.at(-1); return p ? {x:p.x,z:p.z,type:p.type,spin:p.spinner?.rotation.y} : null; })()`,
+  `(() => { const p=window.__DiwalyMeetUp.world.festival.pfxProps.at(-1); return p ? {x:p.x,z:p.z,type:p.type,spin:p.spinner?.rotation.y} : null; })()`,
 );
-await evalJs(`(() => { const g=window.__NewBuddy; g.playing=false;
+await evalJs(`(() => { const g=window.__DiwalyMeetUp; g.playing=false;
   g.camera.position.set(${chakriAt?.x ?? 20}+2.4, 2.1, ${chakriAt?.z ?? 15}+3.4);
   g.camera.lookAt(${chakriAt?.x ?? 20}, 0.4, ${chakriAt?.z ?? 15}); return true; })()`);
 await sleep(300);
 await shot("07-chakri");
-await evalJs("window.__NewBuddy.playing = true");
+await evalJs("window.__DiwalyMeetUp.playing = true");
 check(
   "chakri spinner rotates",
   await evalJs(
-    `(() => { const p=window.__NewBuddy.world.festival.pfxProps.find(p=>p.type==='chakri'); return !!p && p.spinner.rotation.y !== 0; })()`,
+    `(() => { const p=window.__DiwalyMeetUp.world.festival.pfxProps.find(p=>p.type==='chakri'); return !!p && p.spinner.rotation.y !== 0; })()`,
   ),
 );
 check(
   "chakri prop cleaned up after its run",
   await evalJs(`(() => {
-  const f=window.__NewBuddy.world.festival;
+  const f=window.__DiwalyMeetUp.world.festival;
   for (let i=0;i<360;i++) f._updatePlayerFx(0.02);
   return f.pfxProps.length === 0;
 })()`),
@@ -435,7 +435,7 @@ check(
 // ---- rocket ----------------------------------------------------------------
 // Pause the world clock and clear ambient show rockets/particles so the clip
 // shows only the player's bought rocket, then advance the sim deterministically.
-await evalJs(`(() => { const g=window.__NewBuddy, f=g.world.festival;
+await evalJs(`(() => { const g=window.__DiwalyMeetUp, f=g.world.festival;
   window.__origWorldTick = g.world.tick; g.world.tick = () => {};
   f.nextBurst = 999;
   f.rockets = f.rockets.filter(r => r.player);
@@ -443,21 +443,21 @@ await evalJs(`(() => { const g=window.__NewBuddy, f=g.world.festival;
   f.fwPoints.geometry.attributes.color.needsUpdate = true;
   return true; })()`);
 await evalJs(
-  `window.__NewBuddy.equipItem('rocket'); window.__NewBuddy.useEquipped(); 'ok'`,
+  `window.__DiwalyMeetUp.equipItem('rocket'); window.__DiwalyMeetUp.useEquipped(); 'ok'`,
 );
 check(
   "rocket consumed once",
-  await waitFor("window.__NewBuddy.wallet.inventory.rocket === 1", 3000),
+  await waitFor("window.__DiwalyMeetUp.wallet.inventory.rocket === 1", 3000),
 );
 check(
   "player rocket spawned",
   await waitFor(
-    `window.__NewBuddy.world.festival.rockets.some(r => r.player)`,
+    `window.__DiwalyMeetUp.world.festival.rockets.some(r => r.player)`,
     2500,
   ),
 );
 const rocketPos = await evalJs(`(() => {
-  const f=window.__NewBuddy.world.festival;
+  const f=window.__DiwalyMeetUp.world.festival;
   for (let i=0;i<180;i++) {
     const rk=f.rockets.find(r => r.player);
     if (!rk || rk.y > 22) break;
@@ -467,12 +467,12 @@ const rocketPos = await evalJs(`(() => {
   return rk ? {x:rk.x, y:rk.y, z:rk.z} : null;
 })()`);
 check("rocket climbs on its trail", !!rocketPos && rocketPos.y > 5, rocketPos);
-await evalJs(`(() => { const g=window.__NewBuddy, r=${JSON.stringify(rocketPos || { x: 20, y: 20, z: 15 })};
+await evalJs(`(() => { const g=window.__DiwalyMeetUp, r=${JSON.stringify(rocketPos || { x: 20, y: 20, z: 15 })};
   g.playing=false; g.camera.position.set(r.x+17, 12, r.z+28); g.camera.lookAt(r.x, r.y, r.z); return true; })()`);
 await sleep(200);
 await shot("08-rocket");
 await evalJs(`(() => {
-  const f=window.__NewBuddy.world.festival;
+  const f=window.__DiwalyMeetUp.world.festival;
   for (let i=0;i<220;i++) {
     if (!f.rockets.some(r => r.player)) break;
     f._updateFireworks(0.016); f._updatePlayerFx(0.016);
@@ -484,35 +484,35 @@ await sleep(200);
 await shot("09-rocket-burst");
 
 // ---- aerial ----------------------------------------------------------------
-await evalJs(`(() => { const f=window.__NewBuddy.world.festival;
+await evalJs(`(() => { const f=window.__DiwalyMeetUp.world.festival;
   f.nextBurst = 999; f.rockets = []; f.fwLife.fill(0);
   f.fwPoints.geometry.attributes.color.array.fill(0);
   f.fwPoints.geometry.attributes.color.needsUpdate = true;
   return true; })()`);
 await evalJs(
-  `window.__NewBuddy.equipItem('aerial'); window.__NewBuddy.useEquipped(); 'ok'`,
+  `window.__DiwalyMeetUp.equipItem('aerial'); window.__DiwalyMeetUp.useEquipped(); 'ok'`,
 );
 check(
   "aerial consumed once",
-  await waitFor("window.__NewBuddy.wallet.inventory.aerial === 1", 3000),
+  await waitFor("window.__DiwalyMeetUp.wallet.inventory.aerial === 1", 3000),
 );
 const aerialPos =
-  await evalJs(`(() => { const p=window.__NewBuddy.controller.pos;
-  const f=window.__NewBuddy.world.festival;
+  await evalJs(`(() => { const p=window.__DiwalyMeetUp.controller.pos;
+  const f=window.__DiwalyMeetUp.world.festival;
   for (let i=0;i<26;i++) { f._updateFireworks(0.016); f._updatePlayerFx(0.016); }
   return {x:p.x,z:p.z, particles:[...f.fwLife].filter(v => v > 0).length};
 })()`);
 check("aerial opens a large burst", aerialPos.particles > 80, aerialPos);
-await evalJs(`(() => { const g=window.__NewBuddy, p=${JSON.stringify(aerialPos)};
+await evalJs(`(() => { const g=window.__DiwalyMeetUp, p=${JSON.stringify(aerialPos)};
   g.playing=false; g.camera.position.set(p.x+32, 44, p.z+58); g.camera.lookAt(p.x, 58, p.z); return true; })()`);
 await sleep(200);
 await shot("10-aerial");
-await evalJs(`(() => { const f=window.__NewBuddy.world.festival;
+await evalJs(`(() => { const f=window.__DiwalyMeetUp.world.festival;
   for (let i=0;i<36;i++) { f._updateFireworks(0.016); f._updatePlayerFx(0.016); }
   return true; })()`);
 await sleep(200);
 await shot("11-aerial-late");
-await evalJs(`(() => { const g=window.__NewBuddy;
+await evalJs(`(() => { const g=window.__DiwalyMeetUp;
   g.world.tick = window.__origWorldTick; g.playing = true; return true; })()`);
 await sleep(1200);
 
@@ -520,7 +520,7 @@ await sleep(1200);
 check(
   "aerial burst patterns vary",
   await evalJs(
-    `(() => { const f=window.__NewBuddy.world.festival; const seen=new Set();
+    `(() => { const f=window.__DiwalyMeetUp.world.festival; const seen=new Set();
     for (let i=0;i<12;i++) seen.add(f._nextBurstType()); return seen.size > 1; })()`,
   ),
 );
@@ -533,7 +533,7 @@ await c.send("Emulation.setDeviceMetricsOverride", {
   mobile: true,
 });
 await sleep(500);
-await evalJs(`window.__NewBuddy.ui.openShop({id:'fireworks'})`);
+await evalJs(`window.__DiwalyMeetUp.ui.openShop({id:'fireworks'})`);
 await sleep(500);
 await shot("12-shop-mobile");
 const mobileShop =
@@ -545,7 +545,7 @@ check(
   mobileShop,
 );
 await evalJs(
-  `window.__NewBuddy.ui.closeShop(); window.__NewBuddy.ui.openInventory()`,
+  `window.__DiwalyMeetUp.ui.closeShop(); window.__DiwalyMeetUp.ui.openInventory()`,
 );
 await sleep(400);
 await shot("13-inventory-mobile");
@@ -557,7 +557,7 @@ check(
   mobileInv.w <= mobileInv.vw && mobileInv.h <= mobileInv.vh,
   mobileInv,
 );
-await evalJs(`window.__NewBuddy.ui.closeInventory()`);
+await evalJs(`window.__DiwalyMeetUp.ui.closeInventory()`);
 
 await c.send("Emulation.setDeviceMetricsOverride", {
   width: 844,
@@ -566,7 +566,7 @@ await c.send("Emulation.setDeviceMetricsOverride", {
   mobile: true,
 });
 await sleep(400);
-await evalJs(`window.__NewBuddy.ui.openShop({id:'crackers'})`);
+await evalJs(`window.__DiwalyMeetUp.ui.openShop({id:'crackers'})`);
 await sleep(400);
 await shot("14-shop-mobile-landscape");
 const landShop =
@@ -577,26 +577,26 @@ check(
   landShop.w <= landShop.vw && landShop.h <= landShop.vh,
   landShop,
 );
-await evalJs(`window.__NewBuddy.ui.closeShop()`);
+await evalJs(`window.__DiwalyMeetUp.ui.closeShop()`);
 await c.send("Emulation.clearDeviceMetricsOverride");
 await sleep(400);
 
 // ---- persistence across reload --------------------------------------------
 const before = await state();
-const token = await evalJs(`localStorage.getItem('NewBuddy.token')`);
+const token = await evalJs(`localStorage.getItem('DiwalyMeetUp.token')`);
 await c.send("Page.reload", { ignoreCache: true });
 await sleep(3800);
 await evalJs(
-  `window.__NewBuddy.setName('EcoE2E'); window.__NewBuddy.enterWorld(); 'ok'`,
+  `window.__DiwalyMeetUp.setName('EcoE2E'); window.__DiwalyMeetUp.enterWorld(); 'ok'`,
 );
 check(
   "wallet ready after reload",
-  await waitFor("window.__NewBuddy.wallet.ready", 6000),
+  await waitFor("window.__DiwalyMeetUp.wallet.ready", 6000),
 );
 const after = await state();
 check(
   "same device token resumed",
-  (await evalJs(`localStorage.getItem('NewBuddy.token')`)) === token,
+  (await evalJs(`localStorage.getItem('DiwalyMeetUp.token')`)) === token,
 );
 check("balance persisted", after.balance === before.balance, {
   before: before.balance,
@@ -621,16 +621,16 @@ check(
 
 // corrupted local caches must not break boot
 await evalJs(
-  `localStorage.setItem('NewBuddy.wallet','{oops'); localStorage.setItem('NewBuddy.equipped','not-an-item')`,
+  `localStorage.setItem('DiwalyMeetUp.wallet','{oops'); localStorage.setItem('DiwalyMeetUp.equipped','not-an-item')`,
 );
 await c.send("Page.reload", { ignoreCache: true });
 await sleep(3600);
 await evalJs(
-  `window.__NewBuddy.setName('EcoE2E'); window.__NewBuddy.enterWorld(); 'ok'`,
+  `window.__DiwalyMeetUp.setName('EcoE2E'); window.__DiwalyMeetUp.enterWorld(); 'ok'`,
 );
 check(
   "boot survives corrupt local caches",
-  await waitFor("window.__NewBuddy.wallet.ready", 6000),
+  await waitFor("window.__DiwalyMeetUp.wallet.ready", 6000),
 );
 const repaired = await state();
 check(

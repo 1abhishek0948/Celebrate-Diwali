@@ -1,0 +1,12 @@
+services:
+  - type: web
+    runtime: node
+    name: diwali-meetup-game
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm run start:game
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production

@@ -1,5 +1,5 @@
 /* ===========================================================================
-   NewBuddy design system
+   DiwalyMeetUp design system
    Palette generations: deep slate base + coral accent + cyan highlight.
    =========================================================================== */
 :root {
@@ -37,6 +37,9 @@ body {
   color: var(--ink);
   overflow: hidden;
   user-select: none;
+  /* no rubber-band / pull-to-refresh while steering the character */
+  overscroll-behavior: none;
+  touch-action: manipulation;
 }
 #app {
   position: fixed;
@@ -48,6 +51,9 @@ body {
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
+  /* drag-to-orbit hint: "grab" at rest, JS flips it to "grabbing" mid-drag */
+  cursor: grab;
 }
 #labels span {
   user-select: none;
@@ -723,6 +729,21 @@ ul.list li {
   pointer-events: auto;
 }
 
+.game-footer {
+  position: absolute;
+  bottom: calc(13px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  gap: 7px;
+  color: rgba(234, 240, 255, 0.72);
+  font-size: 0.72rem;
+  pointer-events: none;
+  text-shadow: 0 1px 5px rgba(3, 8, 20, 0.85);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
 .hud-chip {
   position: absolute;
   top: 14px;
@@ -786,6 +807,38 @@ ul.list li {
 .icon-btn.on {
   background: var(--accent);
   border-color: transparent;
+}
+
+/* keyboard-shortcut hints (desktop only): tiny key cap in the button corner,
+   driven by the data-key attribute so JS icon swaps can't wipe them */
+.icon-btn,
+#emote-bar button {
+  position: relative;
+}
+.icon-btn[data-key]::after,
+#emote-bar button[data-key]::after {
+  content: attr(data-key);
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  font-size: 0.55rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--ink-dim);
+  background: rgba(13, 20, 33, 0.85);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 3px;
+  pointer-events: none;
+}
+#emote-bar button[data-key]::after {
+  right: 5px;
+}
+@media (hover: none) and (pointer: coarse) {
+  .icon-btn[data-key]::after,
+  #emote-bar button[data-key]::after {
+    display: none; /* no keyboard on touch devices */
+  }
 }
 
 .glass-panel {
@@ -976,6 +1029,17 @@ ul.list li {
 #touch-controls {
   position: absolute;
   inset: 0;
+  /* container must never eat touches meant for the camera zone, the chat or
+     the HUD — only the joystick and buttons themselves are interactive */
+  pointer-events: none;
+  z-index: 7;
+  touch-action: none;
+}
+#joystick,
+#btn-jump,
+#btn-use {
+  pointer-events: auto;
+  touch-action: none;
 }
 #joystick {
   position: absolute;
@@ -1013,12 +1077,60 @@ ul.list li {
   font-size: 0.9rem;
   backdrop-filter: blur(4px);
 }
+#btn-jump.pressed {
+  transform: scale(0.92);
+  filter: brightness(1.2);
+}
+#btn-use {
+  position: absolute;
+  right: 34px;
+  bottom: 206px;
+  min-width: 74px;
+  padding: 14px 0;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: rgba(53, 208, 197, 0.9);
+  color: #06282a;
+  font-weight: 800;
+  font-size: 0.85rem;
+  backdrop-filter: blur(4px);
+}
+#btn-use[hidden] {
+  display: none;
+}
 #cam-touch {
   position: absolute;
   right: 0;
   top: 25%;
   width: 40%;
   bottom: 0;
+  z-index: 6;
+  touch-action: none;
+}
+/* phones in landscape: keep controls clear of home-indicator / notches and
+   slightly smaller so they don't cover gameplay */
+@media (max-width: 700px) {
+  .game-footer {
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    font-size: 0.64rem;
+  }
+  #joystick {
+    left: calc(16px + env(safe-area-inset-left));
+    bottom: calc(80px + env(safe-area-inset-bottom));
+    width: 112px;
+    height: 112px;
+  }
+  #btn-jump {
+    right: calc(20px + env(safe-area-inset-right));
+    bottom: calc(92px + env(safe-area-inset-bottom));
+    width: 64px;
+    height: 64px;
+  }
+  #btn-use {
+    right: calc(20px + env(safe-area-inset-right));
+    bottom: calc(176px + env(safe-area-inset-bottom));
+    min-width: 64px;
+  }
 }
 
 /* player context menu */

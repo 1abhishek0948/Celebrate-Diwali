@@ -4,7 +4,7 @@
 // friends/players/voice/settings panels, chat, emotes, invites, profile.
 // ---------------------------------------------------------------------------
 import * as THREE from "three";
-import { CharacterRig, SKIN, HAIRS, CLOTH } from "./actors.js";
+import { CharacterRig, SKIN, HAIRS } from "./actors.js";
 import { loadProfile, saveProfile } from "./net.js";
 import {
   FIREWORKS,
@@ -95,7 +95,7 @@ export class UI {
     // ---- 1. welcome / login ------------------------------------------------
     this._register("welcome", "Welcome", (n) => {
       const panel = el("div", "panel");
-      panel.appendChild(el("h1", "brand", "NewBuddy"));
+      panel.appendChild(el("h1", "brand", "DiwalyMeetUp"));
       panel.appendChild(
         el(
           "p",
@@ -196,28 +196,10 @@ export class UI {
       const hairColField = field("Hair color");
       const hairColRow = el("div", "swatches");
       hairColField.appendChild(hairColRow);
-      const outfitField = field("Festival outfit");
-      const outfitRow = el("div", "option-row");
-      outfitField.appendChild(outfitRow);
       const glassField = field("Eyewear");
       const glassRow = el("div", "option-row");
       glassField.appendChild(glassRow);
-      const mainField = field("Fabric");
-      const mainRow = el("div", "swatches");
-      mainField.appendChild(mainRow);
-      const accField = field("Accent fabric");
-      const accRow = el("div", "swatches");
-      accField.appendChild(accRow);
-      form.append(
-        genderField,
-        skinField,
-        hairField,
-        hairColField,
-        outfitField,
-        glassField,
-        mainField,
-        accField,
-      );
+      form.append(genderField, skinField, hairField, hairColField, glassField);
       body.append(side, form);
       panel.appendChild(body);
 
@@ -228,7 +210,7 @@ export class UI {
         el("span", "rnd-emoji", "🎲"),
         el("span", "rnd-label", "Surprise me"),
       );
-      const go = el("button", "btn cc-go", "Enter NewBuddy →");
+      const go = el("button", "btn cc-go", "Enter →");
       go.type = "button";
       foot.append(rand, go);
       panel.appendChild(foot);
@@ -237,27 +219,20 @@ export class UI {
       // 3D avatar preview
       const prev = this._makePreview(stage);
       this.preview = prev;
-      // legacy {b,h,s,p} profiles migrate into the gender/outfit model
+      // legacy {b,h} profiles migrate into the gender/appearance model
       const legacy = loadProfile().av;
       this.game.previewAv = {
         g: legacy?.g === undefined ? 1 : legacy.g ? 1 : 0,
         b: legacy?.b ?? 0,
         h: legacy?.h ?? 0,
         y: legacy?.y ?? (legacy?.h ?? 0) % 3,
-        o: legacy?.o ?? 0,
         e: legacy?.e ?? 0,
-        s: legacy?.s ?? 2,
-        p: legacy?.p ?? 3,
       };
       inp.value = loadProfile().name || "";
 
       const HAIR_LABELS = [
         ["Long", "Braid", "Bun"],
         ["Short", "Curly", "Topknot"],
-      ];
-      const OUTFIT_LABELS = [
-        ["Saree", "Kurta·Dupatta", "Lehenga"],
-        ["Daura·Coat", "Kurta·Pajama", "Daura·Topi"],
       ];
 
       const rebuild = () => {
@@ -283,8 +258,6 @@ export class UI {
       };
       sw(skinRow, SKIN, "b");
       sw(hairColRow, HAIRS, "h");
-      sw(mainRow, CLOTH, "s");
-      sw(accRow, CLOTH, "p");
 
       const genderPills = ["Female", "Male"].map((label, i) => {
         const pill = el("button", "pill", label);
@@ -309,16 +282,6 @@ export class UI {
         hairRow.appendChild(pill);
         return pill;
       });
-      const outfitPills = [0, 1, 2].map((i) => {
-        const pill = el("button", "pill");
-        pill.type = "button";
-        pill.onclick = () => {
-          this.game.previewAv.o = i;
-          syncSelection();
-        };
-        outfitRow.appendChild(pill);
-        return pill;
-      });
       const GLASS_LABELS = ["None", "Glasses", "Shades"];
       const glassPills = [0, 1, 2].map((i) => {
         const pill = el("button", "pill", GLASS_LABELS[i]);
@@ -335,9 +298,6 @@ export class UI {
         stylePills.forEach((p, i) => {
           p.textContent = HAIR_LABELS[g][i];
         });
-        outfitPills.forEach((p, i) => {
-          p.textContent = OUTFIT_LABELS[g][i];
-        });
       };
 
       const syncSelection = () => {
@@ -350,16 +310,11 @@ export class UI {
         };
         markRow(skinRow, SKIN, "b");
         markRow(hairColRow, HAIRS, "h");
-        markRow(mainRow, CLOTH, "s");
-        markRow(accRow, CLOTH, "p");
         genderPills.forEach((x, i) =>
           x.classList.toggle("selected", (av.g ?? 1) === i),
         );
         stylePills.forEach((x, i) =>
           x.classList.toggle("selected", (av.y ?? 0) % 3 === i),
-        );
-        outfitPills.forEach((x, i) =>
-          x.classList.toggle("selected", (av.o ?? 0) % 3 === i),
         );
         glassPills.forEach((x, i) =>
           x.classList.toggle("selected", (av.e ?? 0) % 3 === i),
@@ -372,10 +327,7 @@ export class UI {
         av.b = r(SKIN.length);
         av.h = r(HAIRS.length);
         av.y = r(3);
-        av.o = r(3);
         av.e = r(3);
-        av.s = r(CLOTH.length);
-        av.p = r(CLOTH.length);
         syncSelection();
       };
       refreshLabels();
@@ -423,7 +375,7 @@ export class UI {
     this._register("menu", "Menu", (n) => {
       const panel = el("div", "panel");
       panel.style.textAlign = "center";
-      panel.appendChild(el("h1", "brand", "NewBuddy"));
+      panel.appendChild(el("h1", "brand", "DiwalyMeetUp"));
       const profPill = el("p", "sub");
       panel.appendChild(profPill);
       const b1 = el("button", "btn", "Celebrate with World");
@@ -599,7 +551,7 @@ export class UI {
   _loadSettings() {
     let saved = {};
     try {
-      saved = JSON.parse(localStorage.getItem("NewBuddy.settings") || "{}");
+      saved = JSON.parse(localStorage.getItem("DiwalyMeetUp.settings") || "{}");
     } catch {
       saved = {};
     }
@@ -613,7 +565,10 @@ export class UI {
     };
   }
   _saveSettings() {
-    localStorage.setItem("NewBuddy.settings", JSON.stringify(this.settings));
+    localStorage.setItem(
+      "DiwalyMeetUp.settings",
+      JSON.stringify(this.settings),
+    );
   }
 
   // =========================================================================
@@ -649,21 +604,9 @@ export class UI {
       );
     }
 
-    $("btn-players").onclick = () => {
-      this._renderPlayers();
-      togglePanel("players-panel");
-      closePanels("players-panel");
-    };
-    $("btn-friends").onclick = () => {
-      this._renderFriendsPanel();
-      togglePanel("friends-panel");
-      closePanels("friends-panel");
-    };
-    $("btn-voice").onclick = () => {
-      this._renderVoicePanel();
-      togglePanel("voice-panel");
-      closePanels("voice-panel");
-    };
+    $("btn-players").onclick = () => this.togglePlayers();
+    $("btn-friends").onclick = () => this.toggleFriends();
+    $("btn-voice").onclick = () => this.toggleVoice();
     $("btn-settings").onclick = () => this.show("settings");
     this._syncTimeButton = () => {
       const b = $("btn-timeofday");
@@ -692,6 +635,86 @@ export class UI {
         $("friend-name-input").value = "";
       }
     };
+
+    this._bindFullscreen();
+  }
+
+  // =========================================================================
+  // HUD panel + fullscreen helpers (shared by buttons and keyboard shortcuts)
+  // =========================================================================
+  showPlaying(fn) {
+    if (this.game.playing) fn();
+  }
+  togglePlayers() {
+    this.showPlaying(() => {
+      this._renderPlayers();
+      togglePanel("players-panel");
+      closePanels("players-panel");
+    });
+  }
+  toggleFriends() {
+    this.showPlaying(() => {
+      this._renderFriendsPanel();
+      togglePanel("friends-panel");
+      closePanels("friends-panel");
+    });
+  }
+  toggleVoice() {
+    this.showPlaying(() => {
+      this._renderVoicePanel();
+      togglePanel("voice-panel");
+      closePanels("voice-panel");
+    });
+  }
+  closePanels() {
+    for (const k of ["players-panel", "friends-panel", "voice-panel"])
+      $(k).hidden = true;
+  }
+
+  // ---- fullscreen (Fullscreen API, with webkit fallback for older Safari) --
+  _bindFullscreen() {
+    const btn = $("btn-fullscreen");
+    if (!btn) return;
+    const doc = document;
+    const el = doc.documentElement;
+    const request = el.requestFullscreen || el.webkitRequestFullscreen;
+    const exit = doc.exitFullscreen || doc.webkitExitFullscreen;
+    const current = () => doc.fullscreenElement || doc.webkitFullscreenElement;
+    // iPhone Safari has no Element fullscreen: hide the button instead of
+    // showing a control that can never work.
+    this.toggleFullscreen = () => {};
+    if (!request || !exit) {
+      btn.hidden = true;
+      return;
+    }
+    this.toggleFullscreen = () => {
+      try {
+        if (current()) exit.call(doc);
+        else request.call(el, { navigationUI: "hide" })?.catch?.(() => {});
+      } catch {
+        /* some browsers reject without options — retry bare */
+        try {
+          if (!current()) request.call(el);
+        } catch {
+          /* user gesture / permission issue: nothing else to do */
+        }
+      }
+    };
+    const ICON_ON =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg>';
+    const ICON_OFF =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9h6V3M21 9h-6V3M3 15h6v6M21 15h-6v6"/></svg>';
+    const sync = () => {
+      const active = !!current();
+      btn.classList.toggle("on", active);
+      btn.innerHTML = active ? ICON_ON : ICON_OFF;
+      btn.title = active ? "Exit fullscreen (G)" : "Fullscreen (G)";
+      btn.setAttribute("aria-label", btn.title);
+    };
+    btn.onclick = () => this.toggleFullscreen();
+    doc.addEventListener("fullscreenchange", sync);
+    doc.addEventListener("webkitfullscreenchange", sync);
+    sync();
   }
 
   // =========================================================================
@@ -1197,7 +1220,7 @@ export class UI {
       el(
         "p",
         "muted",
-        `Device key: ${(localStorage.getItem("NewBuddy.token") || "").slice(0, 8)}…`,
+        `Device key: ${(localStorage.getItem("DiwalyMeetUp.token") || "").slice(0, 8)}…`,
       ),
       stats,
     );
@@ -1208,6 +1231,8 @@ export class UI {
   // =========================================================================
   setPrompt(item) {
     const p = $("interact-prompt");
+    const useBtn = $("btn-use"); // touch equivalent of the E shortcut
+    if (useBtn) useBtn.hidden = !item;
     if (!item) {
       p.hidden = true;
       return;
@@ -1350,8 +1375,8 @@ export class UI {
   }
 
   setRoomLabel(room, type) {
-    $("hud-room").textContent = room;
-    void type;
+    $("hud-room").textContent =
+      type === "island" ? room.replace(/^island/, "village") : room;
   }
 
   connectedUi(state) {

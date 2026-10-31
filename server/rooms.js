@@ -2,17 +2,20 @@
 // Room registry: island instances + private house rooms.
 // Each room owns its players and a light spatial grid for interest management.
 // ---------------------------------------------------------------------------
-import { MAX_PLAYERS_PER_ISLAND, PLAY_RADIUS } from '../shared/constants.js';
+import { MAX_PLAYERS_PER_island, PLAY_RADIUS } from "../shared/constants.js";
 
 export class Player {
   constructor(id, token, name, av) {
     this.id = id;
     this.token = token;
     this.name = name;
-    this.av = av; // {g,b,h,y,o,e,s,p} appearance ints
+    this.av = av; // {g,b,h,y,e} appearance ints
     this.socket = null;
     this.room = null; // Room ref
-    this.x = 0; this.y = 0; this.z = 0; this.ry = 0;
+    this.x = 0;
+    this.y = 0;
+    this.z = 0;
+    this.ry = 0;
     this.mode = 0; // 0 idle, 1 walk, 2 run, 3 air
     this.lastSeq = 0;
     this.budget = 0; // movement budget (m) accumulates
@@ -27,17 +30,23 @@ export class Room {
     this.type = type; // 'island' | 'house'
     this.players = new Map(); // id -> Player
     // house-room state
-    this.owner = null;  // token of owner
-    this.mode = 'public';
+    this.owner = null; // token of owner
+    this.mode = "public";
     this.hashedPlayers = new Set();
   }
 
-  isHouse() { return this.type === 'house'; }
+  isHouse() {
+    return this.type === "house";
+  }
 
   broadcast(msg, skipId = null) {
     const s = JSON.stringify(msg);
     for (const p of this.players.values()) {
-      if (p.id !== skipId && p.socket && p.socket.readyState === p.socket.OPEN) {
+      if (
+        p.id !== skipId &&
+        p.socket &&
+        p.socket.readyState === p.socket.OPEN
+      ) {
         p.socket.send(s);
       }
     }
@@ -46,11 +55,14 @@ export class Room {
 
   sendTo(id, msg) {
     const p = this.players.get(id);
-    if (p && p.socket && p.socket.readyState === p.socket.OPEN) p.socket.send(JSON.stringify(msg));
+    if (p && p.socket && p.socket.readyState === p.socket.OPEN)
+      p.socket.send(JSON.stringify(msg));
   }
 
   full() {
-    return this.type === 'island' && this.players.size >= MAX_PLAYERS_PER_ISLAND;
+    return (
+      this.type === "island" && this.players.size >= MAX_PLAYERS_PER_island
+    );
   }
 }
 
@@ -59,22 +71,24 @@ export class RoomIndex {
     this.rooms = new Map(); // id -> Room
   }
 
-  get(id) { return this.rooms.get(id) ?? null; }
+  get(id) {
+    return this.rooms.get(id) ?? null;
+  }
 
-  ensureIsland(name) {
+  ensureisland(name) {
     let room = this.rooms.get(name);
     if (!room) {
-      room = new Room(name, 'island');
+      room = new Room(name, "island");
       this.rooms.set(name, room);
     }
     return room;
   }
 
   ensureHouse(houseId, ownerToken) {
-    const id = 'house:' + houseId;
+    const id = "house:" + houseId;
     let room = this.rooms.get(id);
     if (!room) {
-      room = new Room(id, 'house');
+      room = new Room(id, "house");
       room.owner = ownerToken;
       this.rooms.set(id, room);
     }
@@ -97,7 +111,8 @@ export class RoomIndex {
   // Drop empty house rooms to keep memory bounded (islands stay reserved).
   gc() {
     for (const [id, room] of this.rooms) {
-      if (room.type === 'house' && room.players.size === 0) this.rooms.delete(id);
+      if (room.type === "house" && room.players.size === 0)
+        this.rooms.delete(id);
     }
   }
 }
@@ -107,7 +122,12 @@ export class RoomIndex {
 // so flooding packets faster than the send rate cannot buy extra speed.
 export function validateMove(player, st, nowMs) {
   const { x, y, z, ry, mode } = st;
-  if (![x, y, z, ry].every(Number.isFinite) || !Number.isInteger(mode) || mode < 0 || mode > 3) {
+  if (
+    ![x, y, z, ry].every(Number.isFinite) ||
+    !Number.isInteger(mode) ||
+    mode < 0 ||
+    mode > 3
+  ) {
     return { ok: false };
   }
   // Baseline: the first frame (lastStateAt 0/undefined) pins the clock but
@@ -115,7 +135,10 @@ export function validateMove(player, st, nowMs) {
   const since = nowMs - (player.lastStateAt || nowMs);
   player.lastStateAt = nowMs;
   if (since >= 15) {
-    player.budget = Math.min(player.budget + 8.5 * (Math.min(since, 250) / 1000), 4.0); // ~8.5 m/s ceiling + tolerance
+    player.budget = Math.min(
+      player.budget + 8.5 * (Math.min(since, 250) / 1000),
+      4.0,
+    ); // ~8.5 m/s ceiling + tolerance
   }
   const dist = Math.hypot(x - player.x, y - player.y, z - player.z);
   if (dist > player.budget) {
@@ -126,18 +149,21 @@ export function validateMove(player, st, nowMs) {
     player.y += (y - player.y) * k;
     player.budget = 0;
   } else {
-    player.x = x; player.y = y; player.z = z;
+    player.x = x;
+    player.y = y;
+    player.z = z;
     player.budget -= dist;
   }
   player.ry = ry >= -Math.PI && ry <= Math.PI ? ry : player.ry;
   player.mode = mode;
 
   // World bounds clamp
-  if (player.room && player.room.type === 'island') {
+  if (player.room && player.room.type === "island") {
     const r = Math.hypot(player.x, player.z);
     if (r > PLAY_RADIUS) {
       const k = PLAY_RADIUS / r;
-      player.x *= k; player.z *= k;
+      player.x *= k;
+      player.z *= k;
     }
     if (player.y < -0.5) player.y = 0;
     if (player.y > 12) player.y = 12;

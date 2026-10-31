@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Island + house-interior builders (procedural low-poly, zero external assets).
+// island + house-interior builders (procedural low-poly, zero external assets).
 // Geometry/materials are shared and reused; heavy nature elements are
 // InstancedMesh batches. Every solid object registers a collider for the
 // local controller, and interactive objects register an `interactable`.
@@ -8,31 +8,39 @@
 // low draw calls — swap statics for real GLTF assets later without touching
 // gameplay code (see docs/ROADMAP.md).
 // ---------------------------------------------------------------------------
-import * as THREE from 'three';
+import * as THREE from "three";
 import {
-  PLAZA_RADIUS, FOUNTAIN, ROADS, SHOPS, HOUSE_PLOTS, HOUSE_INTERIOR,
-  BEACH_BAR, PLAY_RADIUS,
-} from '../shared/constants.js';
-import { Festival } from './festival.js';
+  PLAZA_RADIUS,
+  FOUNTAIN,
+  ROADS,
+  SHOPS,
+  HOUSE_PLOTS,
+  HOUSE_INTERIOR,
+  BEACH_BAR,
+  PLAY_RADIUS,
+} from "../shared/constants.js";
+import { Festival } from "./festival.js";
 
 // deterministic RNG so clients render the same island for everyone
 export function mulberry32(seed) {
   let a = seed >>> 0;
   return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
+const mat = (color, extra = {}) =>
+  new THREE.MeshLambertMaterial({ color, ...extra });
 
 export class World {
   constructor(scene, opts = {}) {
     this.scene = scene;
-    this.colliders = [];       // {type:'aabb',x0,x1,z0,z1} | {type:'circle',x,z,r}
-    this.interactables = [];   // {kind,id,x,y,z,label}
+    this.colliders = []; // {type:'aabb',x0,x1,z0,z1} | {type:'circle',x,z,r}
+    this.interactables = []; // {kind,id,x,y,z,label}
     this.island = new THREE.Group();
     this.interiors = new Map(); // houseId -> Group
     this.windUniform = { value: 0 }; // drives long-grass sway (see _scatterNature)
@@ -42,12 +50,15 @@ export class World {
     // clearings it needs) BEFORE nature is scattered, so groves never grow
     // through the temples, townhouses or bonfire ground.
     this.festival = new Festival(this, opts);
-    this._buildIsland();
+    this._buildisland();
     for (const plot of HOUSE_PLOTS) this._buildInterior(plot);
     scene.add(this.island);
   }
 
-  _addCollider(c) { this.colliders.push(c); return c; }
+  _addCollider(c) {
+    this.colliders.push(c);
+    return c;
+  }
 
   _mkShared() {
     this.geo = {
@@ -62,7 +73,11 @@ export class World {
     this.mats = {
       grass: mat(0x597f49),
       sand: mat(0xdfc98d),
-      water: new THREE.MeshLambertMaterial({ color: 0x3f9ad1, transparent: true, opacity: 0.85 }),
+      water: new THREE.MeshLambertMaterial({
+        color: 0x3f9ad1,
+        transparent: true,
+        opacity: 0.85,
+      }),
       plaza: mat(0xb5b0a4),
       plazaDark: mat(0x96917f),
       road: mat(0x4a4f57),
@@ -75,14 +90,21 @@ export class World {
       trunk: mat(0x6d4a2f),
       canopy: mat(0xffffff, { flatShading: true }),
       barkDetail: mat(0x8a6a48),
-      grassBlade: new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }),
+      grassBlade: new THREE.MeshLambertMaterial({
+        color: 0xffffff,
+        side: THREE.DoubleSide,
+      }),
       wall: mat(0xd9cbb2),
       wall2: mat(0xc7b49a),
       roof: mat(0xb0553f),
       roof2: mat(0x4f7d8c),
       door: mat(0x5b4326),
       // warm golden windows glowing into the festival night
-      window: new THREE.MeshLambertMaterial({ color: 0x3a2a16, emissive: 0xffa94d, emissiveIntensity: 0.9 }),
+      window: new THREE.MeshLambertMaterial({
+        color: 0x3a2a16,
+        emissive: 0xffa94d,
+        emissiveIntensity: 0.9,
+      }),
       lampPole: mat(0x3c4048),
       lampBulb: new THREE.MeshBasicMaterial({ color: 0xffe9a8 }),
       awning: mat(0xd85f4a),
@@ -108,48 +130,70 @@ export class World {
     this.festival.tick(timeMs, dt);
   }
 
-  setQuality(q) { this.festival.setQuality(q); }
+  setQuality(q) {
+    this.festival.setQuality(q);
+  }
 
-  setTimeOfDay(mode) { this.festival.setTimeOfDay(mode); }
+  setTimeOfDay(mode) {
+    this.festival.setTimeOfDay(mode);
+  }
 
   // keeps responsive overlays (the sky greeting) fitted to the viewport
-  setViewport(aspect, fovDeg) { this.festival.setViewport(aspect, fovDeg); }
+  setViewport(aspect, fovDeg) {
+    this.festival.setViewport(aspect, fovDeg);
+  }
 
   // ------------------------------------------------------------- island --
-  _buildIsland() {
+  _buildisland() {
     const G = this.island;
     const { geo, mats } = this;
 
     // ocean floor + island base
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(486, 500, 2, 48), mats.grass);
+    const base = new THREE.Mesh(
+      new THREE.CylinderGeometry(486, 500, 2, 48),
+      mats.grass,
+    );
     base.position.y = -1;
     G.add(base);
 
     // beach ring
-    const sand = new THREE.Mesh(new THREE.RingGeometry(PLAY_RADIUS - 22, 486, 64), mats.sand);
+    const sand = new THREE.Mesh(
+      new THREE.RingGeometry(PLAY_RADIUS - 22, 486, 64),
+      mats.sand,
+    );
     sand.rotation.x = -Math.PI / 2;
     sand.position.y = 0.012;
     G.add(sand);
 
     // water ring around the island
-    const water = new THREE.Mesh(new THREE.RingGeometry(486, 900, 64), mats.water);
+    const water = new THREE.Mesh(
+      new THREE.RingGeometry(486, 900, 64),
+      mats.water,
+    );
     water.rotation.x = -Math.PI / 2;
     water.position.y = -0.25;
     G.add(water);
 
     // plaza
-    const plaza = new THREE.Mesh(new THREE.CircleGeometry(PLAZA_RADIUS, 48), mats.plaza);
+    const plaza = new THREE.Mesh(
+      new THREE.CircleGeometry(PLAZA_RADIUS, 48),
+      mats.plaza,
+    );
     plaza.rotation.x = -Math.PI / 2;
     plaza.position.y = 0.02;
     G.add(plaza);
 
     // fountain
-    const fx = FOUNTAIN.x, fz = FOUNTAIN.z;
+    const fx = FOUNTAIN.x,
+      fz = FOUNTAIN.z;
     const basin = new THREE.Mesh(this.geo.cyl, mats.plazaDark);
     basin.scale.set(FOUNTAIN.r, FOUNTAIN.h, FOUNTAIN.r);
     basin.position.set(fx, FOUNTAIN.h / 2, fz);
     G.add(basin);
-    const pool = new THREE.Mesh(new THREE.CircleGeometry(FOUNTAIN.r - 0.8, 32), mats.water);
+    const pool = new THREE.Mesh(
+      new THREE.CircleGeometry(FOUNTAIN.r - 0.8, 32),
+      mats.water,
+    );
     pool.rotation.x = -Math.PI / 2;
     pool.position.set(fx, FOUNTAIN.h + 0.02, fz);
     G.add(pool);
@@ -161,8 +205,20 @@ export class World {
     spoutBall.scale.setScalar(0.55);
     spoutBall.position.set(fx, FOUNTAIN.h + 1.95, fz);
     G.add(spoutBall);
-    this._addCollider({ type: 'circle', x: fx, z: fz, r: FOUNTAIN.colliderR });
-    this.interactables.push({ kind: 'greet', id: 'fountain', x: fx + 9, z: fz, label: 'Meet at the fountain' });
+    this._addCollider({
+      type: "circle",
+      x: fx,
+      z: fz,
+      r: FOUNTAIN.colliderR,
+      h: 2.4,
+    });
+    this.interactables.push({
+      kind: "greet",
+      id: "fountain",
+      x: fx + 9,
+      z: fz,
+      label: "Meet at the fountain",
+    });
     // benches around plaza (N/S/E/W at r 26)
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
@@ -171,37 +227,65 @@ export class World {
 
     // ---------------- roads ------------------------------------------------
     const avLenToRing = ROADS.ringRadius - PLAZA_RADIUS;
-    for (const axis of ['x', 'z']) {
-      const cy = axis === 'x' ? 0 : 1;
+    for (const axis of ["x", "z"]) {
+      const cy = axis === "x" ? 0 : 1;
       const center = PLAZA_RADIUS + avLenToRing / 2;
       const mS = this._box(
-        axis === 'x' ? center : 0, 0.035, axis === 'x' ? 0 : center,
-        axis === 'x' ? avLenToRing : 2 * (ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth),
+        axis === "x" ? center : 0,
+        0.035,
+        axis === "x" ? 0 : center,
+        axis === "x"
+          ? avLenToRing
+          : 2 * (ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth),
         0.02,
-        axis === 'x' ? 2 * (ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth) : avLenToRing,
-        mats.sidewalk);
+        axis === "x"
+          ? 2 * (ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth)
+          : avLenToRing,
+        mats.sidewalk,
+      );
       mS.userData.noCollide = true;
       const mR = this._box(
-        axis === 'x' ? center : 0, 0.05, axis === 'x' ? 0 : center,
-        axis === 'x' ? avLenToRing : 2 * ROADS.avenueHalfWidth,
+        axis === "x" ? center : 0,
+        0.05,
+        axis === "x" ? 0 : center,
+        axis === "x" ? avLenToRing : 2 * ROADS.avenueHalfWidth,
         0.02,
-        axis === 'x' ? 2 * ROADS.avenueHalfWidth : avLenToRing,
-        mats.road);
+        axis === "x" ? 2 * ROADS.avenueHalfWidth : avLenToRing,
+        mats.road,
+      );
       mR.userData.noCollide = true;
 
       // ring road
-      const ring = new THREE.Mesh(new THREE.RingGeometry(
-        ROADS.ringRadius - ROADS.avenueHalfWidth, ROADS.ringRadius + ROADS.avenueHalfWidth, 72), mats.road);
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(
+          ROADS.ringRadius - ROADS.avenueHalfWidth,
+          ROADS.ringRadius + ROADS.avenueHalfWidth,
+          72,
+        ),
+        mats.road,
+      );
       ring.rotation.x = -Math.PI / 2;
       ring.position.y = 0.045;
       G.add(ring);
-      const ringWalk1 = new THREE.Mesh(new THREE.RingGeometry(
-        ROADS.ringRadius - ROADS.avenueHalfWidth - ROADS.sidewalkHalfWidth, ROADS.ringRadius - ROADS.avenueHalfWidth, 72), mats.sidewalk);
+      const ringWalk1 = new THREE.Mesh(
+        new THREE.RingGeometry(
+          ROADS.ringRadius - ROADS.avenueHalfWidth - ROADS.sidewalkHalfWidth,
+          ROADS.ringRadius - ROADS.avenueHalfWidth,
+          72,
+        ),
+        mats.sidewalk,
+      );
       ringWalk1.rotation.x = -Math.PI / 2;
       ringWalk1.position.y = 0.04;
       G.add(ringWalk1);
-      const ringWalk2 = new THREE.Mesh(new THREE.RingGeometry(
-        ROADS.ringRadius + ROADS.avenueHalfWidth, ROADS.ringRadius + ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth, 72), mats.sidewalk);
+      const ringWalk2 = new THREE.Mesh(
+        new THREE.RingGeometry(
+          ROADS.ringRadius + ROADS.avenueHalfWidth,
+          ROADS.ringRadius + ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth,
+          72,
+        ),
+        mats.sidewalk,
+      );
       ringWalk2.rotation.x = -Math.PI / 2;
       ringWalk2.position.y = 0.04;
       G.add(ringWalk2);
@@ -210,13 +294,19 @@ export class World {
     // dashes on the two avenues (instanced)
     {
       const n = 48;
-      const dashes = new THREE.InstancedMesh(new THREE.BoxGeometry(2.4, 0.02, 0.3), mats.dash, n * 2);
+      const dashes = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(2.4, 0.02, 0.3),
+        mats.dash,
+        n * 2,
+      );
       const M = new THREE.Matrix4();
       let i = 0;
       for (let k = 0; k < n; k++) {
         const d = PLAZA_RADIUS + 6 + k * ((avLenToRing - 12) / (n - 1));
-        M.makeTranslation(d, 0.07, 0); dashes.setMatrixAt(i++, M);
-        M.makeTranslation(0, 0.07, d); dashes.setMatrixAt(i++, M);
+        M.makeTranslation(d, 0.07, 0);
+        dashes.setMatrixAt(i++, M);
+        M.makeTranslation(0, 0.07, d);
+        dashes.setMatrixAt(i++, M);
       }
       G.add(dashes);
     }
@@ -229,21 +319,36 @@ export class World {
         const a = (i / 26) * Math.PI * 2;
         spots.push([
           Math.cos(a) * (ROADS.ringRadius + ROADS.avenueHalfWidth + 1),
-          Math.sin(a) * (ROADS.ringRadius + ROADS.avenueHalfWidth + 1)]);
+          Math.sin(a) * (ROADS.ringRadius + ROADS.avenueHalfWidth + 1),
+        ]);
       }
       for (let k = 0; k < 5; k++) {
         const d = PLAZA_RADIUS + 14 + k * ((avLenToRing - 24) / 4);
-        spots.push([d, 8.8]); spots.push([d, -8.8]); spots.push([8.8, d]); spots.push([-8.8, d]);
+        spots.push([d, 8.8]);
+        spots.push([d, -8.8]);
+        spots.push([8.8, d]);
+        spots.push([-8.8, d]);
       }
       void rng;
-      const poles = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.12, 4.6, 8), mats.lampPole, spots.length);
-      const bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.28, 10, 8), mats.lampBulb, spots.length);
+      const poles = new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(0.09, 0.12, 4.6, 8),
+        mats.lampPole,
+        spots.length,
+      );
+      const bulbs = new THREE.InstancedMesh(
+        new THREE.SphereGeometry(0.28, 10, 8),
+        mats.lampBulb,
+        spots.length,
+      );
       const M = new THREE.Matrix4();
       spots.forEach(([x, z], i) => {
-        M.makeTranslation(x, 2.3, z); poles.setMatrixAt(i, M);
-        M.makeTranslation(x, 4.75, z); bulbs.setMatrixAt(i, M);
+        M.makeTranslation(x, 2.3, z);
+        poles.setMatrixAt(i, M);
+        M.makeTranslation(x, 4.75, z);
+        bulbs.setMatrixAt(i, M);
       });
-      G.add(poles); G.add(bulbs);
+      G.add(poles);
+      G.add(bulbs);
     }
 
     this._buildResidential();
@@ -263,7 +368,10 @@ export class World {
       const { hx, hz } = { hx: 5, hz: 4 };
       const body = this._box(0, 1.75, 0, 10, 3.5, 8, this.mats.wall, g);
       body.material = plot.x < 0 ? this.mats.wall : this.mats.wall2;
-      const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 6.4, 3.2, 4), plot.x < 0 ? this.mats.roof : this.mats.roof2);
+      const roof = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.01, 6.4, 3.2, 4),
+        plot.x < 0 ? this.mats.roof : this.mats.roof2,
+      );
       roof.rotation.y = Math.PI / 4;
       roof.position.set(0, 4.95, 0);
       roof.scale.set(1.35, 1, 1.1);
@@ -288,7 +396,10 @@ export class World {
       lawn.scale.set(13, 9, 1);
       lawn.position.set(0, 0.015, 1.5);
       g.add(lawn);
-      const path = new THREE.Mesh(new THREE.CircleGeometry(1.6, 16), this.mats.sidewalk);
+      const path = new THREE.Mesh(
+        new THREE.CircleGeometry(1.6, 16),
+        this.mats.sidewalk,
+      );
       path.rotation.x = -Math.PI / 2;
       path.position.set(0, 0.03, hz + 2.4);
       path.scale.set(1, 1.8, 1);
@@ -309,11 +420,16 @@ export class World {
         g.add(limb);
         const tones = [0x3f7d3c, 0x4f9444, 0x356a34, 0x5aa04a];
         const blobs2 = [
-          [tx + 0.2, 2.35, -2.3, 1.25], [tx - 0.45, 2.2, -2.15, 0.95],
-          [tx + 0.05, 2.75, -2.55, 0.85], [tx + 0.4, 1.95, -2.6, 0.7],
+          [tx + 0.2, 2.35, -2.3, 1.25],
+          [tx - 0.45, 2.2, -2.15, 0.95],
+          [tx + 0.05, 2.75, -2.55, 0.85],
+          [tx + 0.4, 1.95, -2.6, 0.7],
         ];
         blobs2.forEach(([bx, by, bz, br], i) => {
-          const leaf = new THREE.Mesh(geo.sphere, mat(tones[(i + (gRng() * 3) | 0) % tones.length]));
+          const leaf = new THREE.Mesh(
+            geo.sphere,
+            mat(tones[((i + gRng() * 3) | 0) % tones.length]),
+          );
           leaf.scale.set(br, br * (0.8 + gRng() * 0.25), br);
           leaf.position.set(bx, by, bz);
           g.add(leaf);
@@ -322,10 +438,20 @@ export class World {
 
       this.island.add(g);
       // static AABB (roots are axis-aligned: ry is PI, so footprint stays axis-aligned)
-      this._addCollider({ type: 'aabb', x0: plot.x - 5, x1: plot.x + 5, z0: plot.z - 4.4, z1: plot.z + 4.4 });
+      this._addCollider({
+        type: "aabb",
+        x0: plot.x - 5,
+        x1: plot.x + 5,
+        z0: plot.z - 4.4,
+        z1: plot.z + 4.4,
+        h: 5.5,
+      });
       this.interactables.push({
-        kind: 'door', houseId: plot.id, x: plot.x, z: plot.z + 4.2,
-        label: `Knock on ${plot.id.replace('house-', 'House ')}'s door`,
+        kind: "door",
+        houseId: plot.id,
+        x: plot.x,
+        z: plot.z + 4.2,
+        label: `Knock on ${plot.id.replace("house-", "House ")}'s door`,
       });
     }
   }
@@ -337,7 +463,16 @@ export class World {
       const body = this._box(0, s.h / 2, 0, s.w, s.h, s.d, this.mats.wall2, g);
       body.material = mat(s.color);
       // awning + sign
-      const awn = this._box(0, s.h - 1.6, s.d / 2 + 0.7, s.w * 0.6, 0.25, 1.5, this.mats.awning, g);
+      const awn = this._box(
+        0,
+        s.h - 1.6,
+        s.d / 2 + 0.7,
+        s.w * 0.6,
+        0.25,
+        1.5,
+        this.mats.awning,
+        g,
+      );
       awn.rotation.x = 0.18;
       const sign = new THREE.Mesh(this.geo.plane, signMaterial(s.sign));
       sign.scale.set(s.w * 0.55, 1.1, 1);
@@ -355,24 +490,45 @@ export class World {
         g.add(win);
       }
       this.island.add(g);
-      this._addCollider({ type: 'aabb', x0: s.x - s.w / 2, x1: s.x + s.w / 2, z0: s.z - s.d / 2, z1: s.z + s.d / 2 });
+      this._addCollider({
+        type: "aabb",
+        x0: s.x - s.w / 2,
+        x1: s.x + s.w / 2,
+        z0: s.z - s.d / 2,
+        z1: s.z + s.d / 2,
+        h: s.h,
+      });
 
       // ---- festive firecracker store --------------------------------------
       if (s.shop) {
         // market stands flanking the doorway, loaded with crackers
         for (const sx of [-1, 1]) {
-          const cx = s.x + sx * (s.w / 2 - 1.5), cz = s.z + s.d / 2 + 1.4;
+          const cx = s.x + sx * (s.w / 2 - 1.5),
+            cz = s.z + s.d / 2 + 1.4;
           this._crackerStand(cx, cz, s.x * 31 + sx * 7 + 1);
-          this._addCollider({ type: 'aabb', x0: cx - 1.0, x1: cx + 1.0, z0: cz - 0.55, z1: cz + 0.55 });
+          this._addCollider({
+            type: "aabb",
+            x0: cx - 1.0,
+            x1: cx + 1.0,
+            z0: cz - 0.55,
+            z1: cz + 0.55,
+            h: 1.6,
+          });
         }
         // glowing "crackers" marquee band above the entrance
-        const band = new THREE.Mesh(this.geo.box, new THREE.MeshBasicMaterial({ color: 0xffb454 }));
+        const band = new THREE.Mesh(
+          this.geo.box,
+          new THREE.MeshBasicMaterial({ color: 0xffb454 }),
+        );
         band.scale.set(s.w * 0.72, 0.16, 0.12);
         band.position.set(0, s.h - 1.15, s.d / 2 + 0.14);
         g.add(band);
         // interactive: browse the shop (fires controller.onShop)
         this.interactables.push({
-          kind: 'shop', id: s.id, x: s.x, z: s.z + s.d / 2 + 4.4,
+          kind: "shop",
+          id: s.id,
+          x: s.x,
+          z: s.z + s.d / 2 + 4.4,
           label: `Browse ${s.sign}`,
         });
       }
@@ -393,9 +549,10 @@ export class World {
     const wrapCols = [0xd23b3b, 0x2f9e6a, 0xd8a24a, 0x7d3fb0, 0x2f7fd2];
     // trestle table
     this._box(0, 0.45, 0, 1.85, 0.14, 0.9, woodTop, g);
-    for (const lx of [-0.8, 0.8]) for (const lz of [-0.36, 0.36]) {
-      this._box(lx, 0.22, lz, 0.1, 0.46, 0.1, wood, g);
-    }
+    for (const lx of [-0.8, 0.8])
+      for (const lz of [-0.36, 0.36]) {
+        this._box(lx, 0.22, lz, 0.1, 0.46, 0.1, wood, g);
+      }
     // big clay anar with a gold collar
     const anar = new THREE.Mesh(this.geo.cone, clay);
     anar.scale.set(0.34, 0.62, 0.34);
@@ -416,13 +573,19 @@ export class World {
     g.add(nose);
     // rolled colour-wrapped cartridges stacked along the table
     for (let i = 0; i < 4; i++) {
-      const w = new THREE.Mesh(this.geo.cyl, mat(wrapCols[i % wrapCols.length]));
+      const w = new THREE.Mesh(
+        this.geo.cyl,
+        mat(wrapCols[i % wrapCols.length]),
+      );
       w.scale.set(0.11, 0.28, 0.11);
       w.position.set(0.55 + (i % 2) * 0.24 - 0.12, 0.66, -0.3 + i * 0.2);
       g.add(w);
     }
     // warm marquee bulb over the stall
-    const bulb = new THREE.Mesh(this.geo.sphere, new THREE.MeshBasicMaterial({ color: 0xffd27a }));
+    const bulb = new THREE.Mesh(
+      this.geo.sphere,
+      new THREE.MeshBasicMaterial({ color: 0xffd27a }),
+    );
     bulb.scale.setScalar(0.11);
     bulb.position.set(0, 1.5, 0.2);
     g.add(bulb);
@@ -430,16 +593,23 @@ export class World {
   }
 
   _buildPark() {
-    const px = 258, pz = 0;
-    const pond = new THREE.Mesh(new THREE.CircleGeometry(14, 32), this.mats.water);
+    const px = 258,
+      pz = 0;
+    const pond = new THREE.Mesh(
+      new THREE.CircleGeometry(14, 32),
+      this.mats.water,
+    );
     pond.rotation.x = -Math.PI / 2;
     pond.position.set(px + 10, 0.03, pz);
     this.island.add(pond);
-    const rim = new THREE.Mesh(new THREE.RingGeometry(14, 15.6, 40), this.mats.stone);
+    const rim = new THREE.Mesh(
+      new THREE.RingGeometry(14, 15.6, 40),
+      this.mats.stone,
+    );
     rim.rotation.x = -Math.PI / 2;
     rim.position.set(px + 10, 0.04, pz);
     this.island.add(rim);
-    this._addCollider({ type: 'circle', x: px + 10, z: pz, r: 15.4 });
+    this._addCollider({ type: "circle", x: px + 10, z: pz, r: 15.4, h: 0.6 });
 
     // benches
     this._bench(px, pz + 18, Math.PI);
@@ -450,13 +620,20 @@ export class World {
     const rng = mulberry32(2007);
     const cols = [0xf26d6d, 0xf2b23f, 0xc866d8, 0xf7f7f7];
     for (let b = 0; b < 6; b++) {
-      const bx = px + 26 * Math.cos(b * 1.05), bz = pz + 26 * Math.sin(b * 1.05);
-      const bed = new THREE.Mesh(new THREE.CircleGeometry(2.6, 18), mat(0x77502e));
+      const bx = px + 26 * Math.cos(b * 1.05),
+        bz = pz + 26 * Math.sin(b * 1.05);
+      const bed = new THREE.Mesh(
+        new THREE.CircleGeometry(2.6, 18),
+        mat(0x77502e),
+      );
       bed.rotation.x = -Math.PI / 2;
       bed.position.set(bx, 0.03, bz);
       this.island.add(bed);
       for (let i = 0; i < 7; i++) {
-        const fy = new THREE.Mesh(this.geo.sphere, mat(cols[(b + i) % cols.length]));
+        const fy = new THREE.Mesh(
+          this.geo.sphere,
+          mat(cols[(b + i) % cols.length]),
+        );
         fy.scale.setScalar(0.22 + rng() * 0.12);
         fy.position.set(bx + (rng() - 0.5) * 4, 0.18, bz + (rng() - 0.5) * 4);
         this.island.add(fy);
@@ -471,20 +648,37 @@ export class World {
     g.position.set(bar.x, 0, bar.z);
     const base = this._box(0, 1.3, 0, 10, 2.6, 6, this.mats.wood, g);
     base.material = this.mats.wood;
-    const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 6.6, 2.6, 6), mat(0x8a6d3b));
+    const roof = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 6.6, 2.6, 6),
+      mat(0x8a6d3b),
+    );
     roof.position.set(0, 3.9, 0);
     g.add(roof);
     const counter = this._box(0, 1.2, 3.2, 8, 0.3, 0.4, this.mats.woodDark, g);
     void counter;
     this.island.add(g);
-    this._addCollider({ type: 'aabb', x0: bar.x - 5, x1: bar.x + 5, z0: bar.z - 3.2, z1: bar.z + 3.6 });
-    this.interactables.push({ kind: 'greet', id: 'beachbar', x: bar.x, z: bar.z + 5, label: 'Order a drink (hang out)' });
+    this._addCollider({
+      type: "aabb",
+      x0: bar.x - 5,
+      x1: bar.x + 5,
+      z0: bar.z - 3.2,
+      z1: bar.z + 3.6,
+      h: 4.5,
+    });
+    this.interactables.push({
+      kind: "greet",
+      id: "beachbar",
+      x: bar.x,
+      z: bar.z + 5,
+      label: "Order a drink (hang out)",
+    });
 
     // umbrellas + towels
     const rng = mulberry32(555);
     const towels = [0xe2574c, 0x35d0c5, 0xf2b23f, 0x9a7fd8];
     for (let i = 0; i < 8; i++) {
-      const ux = -310 + rng() * 60, uz = -80 + rng() * 180;
+      const ux = -310 + rng() * 60,
+        uz = -80 + rng() * 180;
       if (Math.hypot(ux, uz) < 260) continue;
       const pole = new THREE.Mesh(this.geo.cyl, this.mats.metal);
       pole.scale.set(0.05, 2.4, 0.05);
@@ -494,20 +688,32 @@ export class World {
       um.scale.set(2.2, 0.9, 2.2);
       um.position.set(ux, 2.5, uz);
       this.island.add(um);
-      const towel = new THREE.Mesh(this.geo.plane, mat(towels[(i + 1) % towels.length]));
+      const towel = new THREE.Mesh(
+        this.geo.plane,
+        mat(towels[(i + 1) % towels.length]),
+      );
       towel.rotation.x = -Math.PI / 2;
       towel.scale.set(1.3, 2.4, 1);
       towel.position.set(ux + (rng() - 0.5) * 4, 0.02, uz + 3.4);
       this.island.add(towel);
     }
     // palm trees along the shore
-    const palms = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.28, 0, 7), this.mats.trunk, 40);
+    const palms = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.16, 0.28, 0, 7),
+      this.mats.trunk,
+      40,
+    );
     let idx = 0;
-    const palmHead = new THREE.InstancedMesh(new THREE.ConeGeometry(1.8, 2.6, 6), this.mats.leaf, 40);
+    const palmHead = new THREE.InstancedMesh(
+      new THREE.ConeGeometry(1.8, 2.6, 6),
+      this.mats.leaf,
+      40,
+    );
     for (let i = 0; i < 60; i++) {
       const a = rng() * Math.PI * 2;
       const r = PLAY_RADIUS - 26 - rng() * 8;
-      const px2 = Math.cos(a) * r, pz2 = Math.sin(a) * r;
+      const px2 = Math.cos(a) * r,
+        pz2 = Math.sin(a) * r;
       if (Math.hypot(px2 - bar.x, pz2 - bar.z) < 14) continue;
       if (idx >= 40) break;
       const M = new THREE.Matrix4();
@@ -518,9 +724,14 @@ export class World {
       palmHead.setMatrixAt(idx, M);
       idx++;
     }
-    palms.count = idx; palmHead.count = idx;
-    if (palms.computeBoundingSphere) { palms.computeBoundingSphere(); palmHead.computeBoundingSphere(); }
-    this.island.add(palms); this.island.add(palmHead);
+    palms.count = idx;
+    palmHead.count = idx;
+    if (palms.computeBoundingSphere) {
+      palms.computeBoundingSphere();
+      palmHead.computeBoundingSphere();
+    }
+    this.island.add(palms);
+    this.island.add(palmHead);
   }
 
   _bench(x, z, ry) {
@@ -532,7 +743,16 @@ export class World {
     const back = this._box(0, 0.75, -0.24, 1.8, 0.5, 0.07, this.mats.wood, g);
     void back;
     for (const lx of [-0.7, 0.7]) {
-      const leg = this._box(lx, 0.21, 0, 0.09, 0.42, 0.4, this.mats.woodDark, g);
+      const leg = this._box(
+        lx,
+        0.21,
+        0,
+        0.09,
+        0.42,
+        0.4,
+        this.mats.woodDark,
+        g,
+      );
       void leg;
     }
     this.island.add(g);
@@ -547,13 +767,30 @@ export class World {
       if (Math.hypot(x - c.x, z - c.z) < c.r) return false;
     }
     const sw = ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth + 1.2;
-    if (Math.abs(z) < sw && Math.abs(x) < ROADS.ringRadius + 8 && x > 34) return false;
-    if (Math.abs(x) < sw && Math.abs(z) < ROADS.ringRadius + 8 && z > 34) return false;
-    if (Math.abs(r - ROADS.ringRadius) < ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth + 2) return false;
-    if (Math.hypot(x - 258, z) < 20) return false;                                  // pond
-    if (z < -110 && z > -140 && x > -70 && x < 70) return false;                    // shops
-    if (z > 126 && z < 140 && Math.abs(x) > 50 && Math.abs(x) < 100) return false;  // houses row 1
-    if (z > 246 && z < 258 && Math.abs(x) > 50 && Math.abs(x) < 100) return false;  // houses row 2
+    if (Math.abs(z) < sw && Math.abs(x) < ROADS.ringRadius + 8 && x > 34)
+      return false;
+    if (Math.abs(x) < sw && Math.abs(z) < ROADS.ringRadius + 8 && z > 34)
+      return false;
+    if (
+      Math.abs(r - ROADS.ringRadius) <
+      ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth + 2
+    )
+      return false;
+    if (Math.hypot(x - 258, z) < 20) return false; // pond
+    if (z < -110 && z > -140 && x > -70 && x < 70) return false; // shops
+    // house rows: north 1/2 + corner extensions, east/west columns, south rows
+    if (z > 124 && z < 140 && Math.abs(x) > 52 && Math.abs(x) < 142)
+      return false; // north row 1
+    if (z > 244 && z < 260 && Math.abs(x) > 52 && Math.abs(x) < 142)
+      return false; // north row 2
+    if (Math.abs(x - 132) < 9 && Math.abs(z) > 52 && Math.abs(z) < 99)
+      return false; // east column
+    if (Math.abs(x + 132) < 9 && Math.abs(z) > 52 && Math.abs(z) < 99)
+      return false; // west column
+    if (z > -141 && z < -123 && Math.abs(x) > 80 && Math.abs(x) < 100)
+      return false; // south row 1
+    if (z > -261 && z < -243 && Math.abs(x) > 80 && Math.abs(x) < 100)
+      return false; // south row 2
     if (Math.hypot(x - BEACH_BAR.x, z - BEACH_BAR.z) < 16) return false;
     if (Math.hypot(x, z) < FOUNTAIN.colliderR + 3) return false;
     return true;
@@ -563,12 +800,24 @@ export class World {
   _bladeGeometry() {
     const g = new THREE.BufferGeometry();
     const pos = [
-      -0.07, 0, 0, 0.07, 0, 0,        // base
-      -0.04, 0.5, 0.07, 0.04, 0.5, 0.07,
-      0, 1.0, 0.22,                   // tip
+      -0.07,
+      0,
+      0,
+      0.07,
+      0,
+      0, // base
+      -0.04,
+      0.5,
+      0.07,
+      0.04,
+      0.5,
+      0.07,
+      0,
+      1.0,
+      0.22, // tip
     ];
     const idx = [0, 1, 3, 0, 3, 2, 2, 3, 4];
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
     g.setIndex(idx);
     g.computeVertexNormals();
     return g;
@@ -582,10 +831,17 @@ export class World {
     const V = new THREE.Vector3();
     const pick = (a) => a[(rng() * a.length) | 0];
     const tint = (h, sat, li, hs, ss, ls) =>
-      new THREE.Color().setHSL(h + (rng() - 0.5) * hs, sat + (rng() - 0.5) * ss, li + (rng() - 0.5) * ls);
+      new THREE.Color().setHSL(
+        h + (rng() - 0.5) * hs,
+        sat + (rng() - 0.5) * ss,
+        li + (rng() - 0.5) * ls,
+      );
 
     // gather instances; a few InstancedMesh batches total so draw calls stay low
-    const trunks = [], branches = [], blobs = [], blades = [];
+    const trunks = [],
+      branches = [],
+      blobs = [],
+      blades = [];
     const SC = new THREE.Vector3();
     const push = (list, x, y, z, sx, sy, sz, tiltZ, ry, color) => {
       Q.setFromEuler(new THREE.Euler((rng() - 0.5) * 0.06, ry, tiltZ));
@@ -595,29 +851,42 @@ export class World {
 
     // ---- tree spots: clustered groves + scattered singles -------------------
     const spots = [];
-    const minDist = (list, x, z, d) => list.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < d);
+    const minDist = (list, x, z, d) =>
+      list.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < d);
 
     // grove centers (woodland clusters)
     const groves = [];
     let gTries = 0;
     while (groves.length < 150 && gTries++ < 6000) {
-      const x = (rng() - 0.5) * 2 * 400, z = (rng() - 0.5) * 2 * 400;
+      const x = (rng() - 0.5) * 2 * 400,
+        z = (rng() - 0.5) * 2 * 400;
       if (!this._natureSpotOk(x, z) || minDist(groves, x, z, 26)) continue;
       groves.push([x, z]);
     }
     for (const [gx, gz] of groves) {
       const n = 3 + ((rng() * 3) | 0);
       for (let i = 0; i < n; i++) {
-        const x = gx + (rng() - 0.5) * 17, z = gz + (rng() - 0.5) * 17;
+        const x = gx + (rng() - 0.5) * 17,
+          z = gz + (rng() - 0.5) * 17;
         if (!this._natureSpotOk(x, z) || minDist(spots, x, z, 3.4)) continue;
         spots.push([x, z, rng()]);
       }
       // soft grass floor under the grove
       for (let i = 0, n2 = 30 + ((rng() * 24) | 0); i < n2; i++) {
-        const a = rng() * Math.PI * 2, rad = 2 + rng() * 10;
-        push(blades, gx + Math.cos(a) * rad, 0, gz + Math.sin(a) * rad,
-          0.7 + rng() * 0.7, 0.85 + rng() * 0.6, 0.7 + rng() * 0.7, (rng() - 0.5) * 0.3, rng() * 6.3,
-          tint(0.29, 0.5, 0.24, 0.05, 0.16, 0.07));
+        const a = rng() * Math.PI * 2,
+          rad = 2 + rng() * 10;
+        push(
+          blades,
+          gx + Math.cos(a) * rad,
+          0,
+          gz + Math.sin(a) * rad,
+          0.7 + rng() * 0.7,
+          0.85 + rng() * 0.6,
+          0.7 + rng() * 0.7,
+          (rng() - 0.5) * 0.3,
+          rng() * 6.3,
+          tint(0.29, 0.5, 0.24, 0.05, 0.16, 0.07),
+        );
       }
     }
 
@@ -634,11 +903,26 @@ export class World {
     for (const [x, z, roll] of spots) {
       const isTall = roll < 0.38;
       const isSmall = !isTall && roll > 0.94;
-      const h = isTall ? 9 + rng() * 4 : isSmall ? 3.1 + rng() * 1 : 4.6 + rng() * 2.4;
+      const h = isTall
+        ? 9 + rng() * 4
+        : isSmall
+          ? 3.1 + rng() * 1
+          : 4.6 + rng() * 2.4;
       const spread = isTall ? 2.6 : isSmall ? 0.9 : 1.5;
       const trunkTint = tint(0.07, 0.32, 0.3, 0.03, 0.08, 0.07);
 
-      push(trunks, x, h / 2, z, (isTall ? 1.15 : 0.75) + rng() * 0.4, h, (isTall ? 1.15 : 0.75) + rng() * 0.4, (rng() - 0.5) * 0.05, rng() * 6.3, trunkTint);
+      push(
+        trunks,
+        x,
+        h / 2,
+        z,
+        (isTall ? 1.15 : 0.75) + rng() * 0.4,
+        h,
+        (isTall ? 1.15 : 0.75) + rng() * 0.4,
+        (rng() - 0.5) * 0.05,
+        rng() * 6.3,
+        trunkTint,
+      );
 
       const crown = h + 0.35;
 
@@ -646,8 +930,18 @@ export class World {
       const nb = isSmall ? 1 : 2 + ((rng() * 2) | 0);
       for (let b = 0; b < nb; b++) {
         const ba = b * ((Math.PI * 2) / nb) + rng() * 0.5;
-        push(branches, x + Math.cos(ba) * 0.22, crown - 0.55, z + Math.sin(ba) * 0.22,
-          0.55, 1.1 + rng() * 0.9, 0.55, 0.95 + rng() * 0.4, ba, trunkTint);
+        push(
+          branches,
+          x + Math.cos(ba) * 0.22,
+          crown - 0.55,
+          z + Math.sin(ba) * 0.22,
+          0.55,
+          1.1 + rng() * 0.9,
+          0.55,
+          0.95 + rng() * 0.4,
+          ba,
+          trunkTint,
+        );
       }
 
       // layered canopy blobs around the crown
@@ -659,27 +953,59 @@ export class World {
         for (let i = 0; i < Math.max(1, n); i++) {
           const a = (i / n) * Math.PI * 2 + rng() * 0.8;
           const rad = (rng() - 0.3) * lr;
-          const bx = x + Math.cos(a) * rad, bz = z + Math.sin(a) * rad;
+          const bx = x + Math.cos(a) * rad,
+            bz = z + Math.sin(a) * rad;
           const by = ly + (rng() - 0.5) * 0.5;
-          const br = (isTall ? 1.7 : 1.25) + rng() * (isTall ? 1.25 : 0.9) - l * 0.26;
+          const br =
+            (isTall ? 1.7 : 1.25) + rng() * (isTall ? 1.25 : 0.9) - l * 0.26;
           // deep green tint; ~8% golden/autumn trees
-          const leafTint = rng() < 0.08
-            ? tint(0.09, 0.62, 0.38, 0.03, 0.1, 0.08)
-            : tint(0.301, 0.5, 0.27, 0.03, 0.1, 0.06);
-          push(blobs, bx, by, bz, br, br * (0.75 + rng() * 0.35), br, 0, rng() * 6.3, leafTint);
+          const leafTint =
+            rng() < 0.08
+              ? tint(0.09, 0.62, 0.38, 0.03, 0.1, 0.08)
+              : tint(0.301, 0.5, 0.27, 0.03, 0.1, 0.06);
+          push(
+            blobs,
+            bx,
+            by,
+            bz,
+            br,
+            br * (0.75 + rng() * 0.35),
+            br,
+            0,
+            rng() * 6.3,
+            leafTint,
+          );
         }
       }
 
       // tree colliders (thin circle per trunk; sparse for free walking)
-      if (rng() < 0.6) this._addCollider({ type: 'circle', x, z, r: 0.35 + (isTall ? 0.14 : 0) });
+      if (rng() < 0.6)
+        this._addCollider({
+          type: "circle",
+          x,
+          z,
+          r: 0.35 + (isTall ? 0.14 : 0),
+        });
 
       // long grass tufts at the base of the tree
       for (let i = 0, n2 = 8 + ((rng() * 8) | 0); i < n2; i++) {
-        const a = rng() * Math.PI * 2, rad = 0.6 + rng() * 3.2;
-        const gx = x + Math.cos(a) * rad, gz = z + Math.sin(a) * rad;
+        const a = rng() * Math.PI * 2,
+          rad = 0.6 + rng() * 3.2;
+        const gx = x + Math.cos(a) * rad,
+          gz = z + Math.sin(a) * rad;
         if (!this._natureSpotOk(gx, gz)) continue;
-        push(blades, gx, 0, gz, 0.8 + rng() * 0.7, 0.95 + rng() * 0.6, 0.8 + rng() * 0.7, (rng() - 0.5) * 0.25, rng() * 6.3,
-          tint(0.29, 0.5, 0.24, 0.05, 0.16, 0.07));
+        push(
+          blades,
+          gx,
+          0,
+          gz,
+          0.8 + rng() * 0.7,
+          0.95 + rng() * 0.6,
+          0.8 + rng() * 0.7,
+          (rng() - 0.5) * 0.25,
+          rng() * 6.3,
+          tint(0.29, 0.5, 0.24, 0.05, 0.16, 0.07),
+        );
       }
     }
 
@@ -687,17 +1013,28 @@ export class World {
     const fields = [];
     let fTries = 0;
     while (fields.length < 90 && fTries++ < 5000) {
-      const x = (rng() - 0.5) * 2 * 430, z = (rng() - 0.5) * 2 * 430;
+      const x = (rng() - 0.5) * 2 * 430,
+        z = (rng() - 0.5) * 2 * 430;
       if (!this._natureSpotOk(x, z) || minDist(fields, x, z, 18)) continue;
       fields.push([x, z]);
     }
     for (const [fx, fz] of fields) {
       const n2 = 150 + ((rng() * 100) | 0);
       for (let i = 0; i < n2; i++) {
-        const a = rng() * Math.PI * 2, rad = Math.sqrt(rng()) * 10;
-        push(blades, fx + Math.cos(a) * rad, 0, fz + Math.sin(a) * rad,
-          0.8 + rng() * 0.7, 0.9 + rng() * 0.7, 0.8 + rng() * 0.7, (rng() - 0.5) * 0.3, rng() * 6.3,
-          tint(0.29, 0.5, 0.25, 0.05, 0.16, 0.07));
+        const a = rng() * Math.PI * 2,
+          rad = Math.sqrt(rng()) * 10;
+        push(
+          blades,
+          fx + Math.cos(a) * rad,
+          0,
+          fz + Math.sin(a) * rad,
+          0.8 + rng() * 0.7,
+          0.9 + rng() * 0.7,
+          0.8 + rng() * 0.7,
+          (rng() - 0.5) * 0.3,
+          rng() * 6.3,
+          tint(0.29, 0.5, 0.25, 0.05, 0.16, 0.07),
+        );
       }
     }
 
@@ -725,8 +1062,10 @@ export class World {
     this.mats.grassBlade.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = this.windUniform;
       sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', '#include <common>\nuniform float uTime;')
-        .replace('#include <begin_vertex>', `#include <begin_vertex>
+        .replace("#include <common>", "#include <common>\nuniform float uTime;")
+        .replace(
+          "#include <begin_vertex>",
+          `#include <begin_vertex>
           #ifdef USE_INSTANCING
             vec4 gw = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
             float gsway = sin(uTime * 1.6 + gw.x * 0.32 + gw.z * 0.18) * 0.055
@@ -734,7 +1073,8 @@ export class World {
             float gy = max(transformed.y, 0.0);
             transformed.x += gsway * gy * gy * 3.0;
             transformed.z += gsway * gy * gy * 1.4;
-          #endif`);
+          #endif`,
+        );
     };
 
     this.island.add(buildBatch(barkGeo, this.mats.trunk, trunks));
@@ -756,20 +1096,31 @@ export class World {
     floor.position.y = 0.01;
     g.add(floor);
 
-    const rug = new THREE.Mesh(new THREE.CircleGeometry(2.4, 24), this.mats.rug);
+    const rug = new THREE.Mesh(
+      new THREE.CircleGeometry(2.4, 24),
+      this.mats.rug,
+    );
     rug.rotation.x = -Math.PI / 2;
     rug.position.set(0, 0.02, -0.6);
     g.add(rug);
 
     // back wall + side walls (front wall split around the door)
     const wall = mat(0xf0e3cd);
-    this._iw(g, wall, 0, wallH / 2, -halfZ, halfX * 2, wallH);                    // back
-    this._iw(g, wall, -halfX, wallH / 2, 0, wallH, halfZ * 2);                   // left
-    this._iw(g, wall, halfX, wallH / 2, 0, wallH, halfZ * 2);                    // right
+    this._iw(g, wall, 0, wallH / 2, -halfZ, halfX * 2, wallH); // back
+    this._iw(g, wall, -halfX, wallH / 2, 0, wallH, halfZ * 2); // left
+    this._iw(g, wall, halfX, wallH / 2, 0, wallH, halfZ * 2); // right
     const frontHalf = (halfX - 1.4) / 2;
-    this._iw(g, wall, -(1.4 + frontHalf), wallH / 2, halfZ, frontHalf * 2, wallH);
+    this._iw(
+      g,
+      wall,
+      -(1.4 + frontHalf),
+      wallH / 2,
+      halfZ,
+      frontHalf * 2,
+      wallH,
+    );
     this._iw(g, wall, 1.4 + frontHalf, wallH / 2, halfZ, frontHalf * 2, wallH);
-    this._iw(g, wall, 0, wallH + 0.5, halfZ, 2.8, 1);                            // door header
+    this._iw(g, wall, 0, wallH + 0.5, halfZ, 2.8, 1); // door header
 
     // windows (emissive planes) on back wall
     for (const wx of [-3.4, 3.4]) {
@@ -781,20 +1132,66 @@ export class World {
 
     // Interior furniture remains decorative.
     I.seats.forEach((seat) => {
-      const fx = seat.type === 'couch' ? 2.6 : seat.x * 1; void fx;
-      if (seat.type === 'couch') {
-        this._box(seat.x - 0.1, 0.42, seat.z, 1, 0.36, 2.2, this.mats.woodDark, g);
+      const fx = seat.type === "couch" ? 2.6 : seat.x * 1;
+      void fx;
+      if (seat.type === "couch") {
+        this._box(
+          seat.x - 0.1,
+          0.42,
+          seat.z,
+          1,
+          0.36,
+          2.2,
+          this.mats.woodDark,
+          g,
+        );
         for (const oz of [-0.62, 0.62]) {
           const sz = seat.z + oz;
-          const backrest = this._box(seat.x - 0.42, 0.75, sz, 0.3, 0.65, 0.92, this.mats.cushion, g);
+          const backrest = this._box(
+            seat.x - 0.42,
+            0.75,
+            sz,
+            0.3,
+            0.65,
+            0.92,
+            this.mats.cushion,
+            g,
+          );
           void backrest;
         }
       } else {
         this._box(seat.x, 0.24, seat.z, 0.9, 0.09, 0.9, this.mats.wood, g);
-        this._box(seat.x, 0.62, seat.z - 0.4, 0.9, 0.8, 0.12, this.mats.woodDark, g);
+        this._box(
+          seat.x,
+          0.62,
+          seat.z - 0.4,
+          0.9,
+          0.8,
+          0.12,
+          this.mats.woodDark,
+          g,
+        );
         for (const ox of [-0.4, 0.4]) {
-          this._box(seat.x + ox, 0.36, seat.z + 0.4, 0.08, 0.35, 0.08, this.mats.woodDark, g);
-          this._box(seat.x + ox, 0.36, seat.z - 0.4, 0.08, 0.35, 0.08, this.mats.woodDark, g);
+          this._box(
+            seat.x + ox,
+            0.36,
+            seat.z + 0.4,
+            0.08,
+            0.35,
+            0.08,
+            this.mats.woodDark,
+            g,
+          );
+          this._box(
+            seat.x + ox,
+            0.36,
+            seat.z - 0.4,
+            0.08,
+            0.35,
+            0.08,
+            this.mats.woodDark,
+            g,
+          );
         }
       }
       const seatPad = new THREE.Mesh(this.geo.box, this.mats.cushion);
@@ -820,7 +1217,14 @@ export class World {
     g.add(roomLight);
 
     // door exit marker (green glow strip at the doorway)
-    const ex = new THREE.Mesh(this.geo.plane, new THREE.MeshBasicMaterial({ color: 0x35d0c5, transparent: true, opacity: 0.6 }));
+    const ex = new THREE.Mesh(
+      this.geo.plane,
+      new THREE.MeshBasicMaterial({
+        color: 0x35d0c5,
+        transparent: true,
+        opacity: 0.6,
+      }),
+    );
     ex.scale.set(2.6, 0.12, 1);
     ex.position.set(I.door.x, 0.06, I.door.z - 0.3);
     g.add(ex);
@@ -838,7 +1242,7 @@ export class World {
   }
 
   // rooms ---------------------------------------------------------------------
-  showIsland() {
+  showisland() {
     this.island.visible = true;
     for (const g of this.interiors.values()) g.visible = false;
   }
@@ -850,14 +1254,16 @@ export class World {
 
 // ---------------------------------------------------------------- utility ---
 function signMaterial(text) {
-  const c = document.createElement('canvas');
-  c.width = 512; c.height = 96;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#22304e';
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 96;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#22304e";
   ctx.fillRect(0, 0, 512, 96);
-  ctx.fillStyle = '#ffe6b8';
+  ctx.fillStyle = "#ffe6b8";
   ctx.font = 'bold 54px "Avenir Next", sans-serif';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
   ctx.fillText(text, 256, 52);
   const tex = new THREE.CanvasTexture(c);
   tex.anisotropy = 2;

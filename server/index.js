@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// NewBuddy server entry point.
+// DiwalyMeetUp server entry point.
 //  - HTTP: static client files (client/, shared/, vendored three.js)
 //  - WS  : lobby, rooms (island instances + private houses), movement
 //          validation, 20Hz snapshots, chat, friends, invites, voice signaling.
@@ -21,7 +21,7 @@ import {
   HOUSE_PLOTS,
   plotDoorPos,
   HOUSE_INTERIOR,
-  ISLAND_ROOM_PREFIX,
+  island_ROOM_PREFIX,
   SPAWN_POINTS,
 } from "../shared/constants.js";
 import { RoomIndex, Player, validateMove } from "./rooms.js";
@@ -41,7 +41,7 @@ const EXTRA_ORIGINS = String(process.env.ALLOWED_ORIGINS || "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
-const DEBUG_TELEPORT = process.env.NewBuddy_ALLOW_TELEPORT === "1";
+const DEBUG_TELEPORT = process.env.DiwalyMeetUp_ALLOW_TELEPORT === "1";
 
 // ---------------------------------------------------------------------------
 // Static file serving (client + shared + vendored three.js from node_modules)
@@ -61,6 +61,18 @@ function vendorize() {
       "node_modules/three/examples/jsm/renderers/CSS2DRenderer.js",
       "CSS2DRenderer.js",
     ],
+    [
+      "node_modules/three/examples/jsm/loaders/GLTFLoader.js",
+      "GLTFLoader.js",
+    ],
+    [
+      "node_modules/three/examples/jsm/utils/BufferGeometryUtils.js",
+      "BufferGeometryUtils.js",
+    ],
+    [
+      "node_modules/three/examples/jsm/utils/SkeletonUtils.js",
+      "SkeletonUtils.js",
+    ],
   ];
   for (const [src, dst] of jobs) {
     try {
@@ -76,6 +88,20 @@ function vendorize() {
     } catch (e) {
       console.error("[vendor] failed to copy", src, e.message);
     }
+  }
+  // GLTFLoader normally reaches BufferGeometryUtils through ../utils/. The
+  // browser receives both files from the flat /vendor directory, so make that
+  // relative import match the runtime layout generated above.
+  const gltfLoader = path.join(VENDOR, "GLTFLoader.js");
+  try {
+    const source = fs.readFileSync(gltfLoader, "utf8");
+    const patched = source.replace(
+      "../utils/BufferGeometryUtils.js",
+      "./BufferGeometryUtils.js",
+    );
+    if (patched !== source) fs.writeFileSync(gltfLoader, patched);
+  } catch (e) {
+    console.error("[vendor] failed to prepare GLTFLoader", e.message);
   }
   // license notices for third-party code (kept under docs/LICENSES/)
   fs.mkdirSync(path.join(ROOT, "docs", "LICENSES"), { recursive: true });
@@ -184,10 +210,10 @@ function metrics() {
 
 // island-1 stays reserved; island-2.. spawn when island-1 is full.
 function islandRoomFor() {
-  const first = rooms.ensureIsland(ISLAND_ROOM_PREFIX + "1");
+  const first = rooms.ensureisland(island_ROOM_PREFIX + "1");
   if (!first.full()) return first;
   for (let i = 2; i < 50; i++) {
-    const r = rooms.ensureIsland(ISLAND_ROOM_PREFIX + i);
+    const r = rooms.ensureisland(island_ROOM_PREFIX + i);
     if (!r.full()) return r;
   }
   return null;
@@ -243,7 +269,7 @@ wss.on("connection", (ws) => {
       return;
     }
     if (!msg || typeof msg.t !== "string" || !rateOk(ws)) return;
-    if (process.env.NewBuddy_DEBUG_MSG)
+    if (process.env.DiwalyMeetUp_DEBUG_MSG)
       process.stderr.write(`[msg] ${msg.t}\n`);
     const h = handlers[msg.t];
     if (!h) return;
@@ -305,7 +331,7 @@ const handlers = {
   },
 
   hello(ws, m) {
-    // {t:'hello', name, av:{g,b,h,y,o,e,s,p}, token}
+    // {t:'hello', name, av:{g,b,h,y,e}, token}
     if (ws.player) return; // already hello'd
     clearTimeout(ws.helloTimer);
 
@@ -671,7 +697,7 @@ const handlers = {
     }
     // find island room + spawn in front of the plot
     const plot = HOUSE_PLOTS.find((h) => h.id === pl.room.id.split(":")[1]);
-    const room = rooms.ensureIsland(ISLAND_ROOM_PREFIX + "1");
+    const room = rooms.ensureisland(island_ROOM_PREFIX + "1");
     const from = rooms.remove(pl);
     const d = plotDoorPos(plot);
     pl.x = d.x;
@@ -792,7 +818,11 @@ const handlers = {
     }
     if (tRoom.full()) {
       ws.send(
-        JSON.stringify({ t: "err", code: "full", msg: "That island is full." }),
+        JSON.stringify({
+          t: "err",
+          code: "full",
+          msg: "That island is full.",
+        }),
       );
       return;
     }
@@ -885,10 +915,7 @@ function normAv(av) {
     g: a.g ? 1 : 0,
     b: bclamp(a.b ?? 0),
     h: bclamp(a.h ?? 1),
-    s: bclamp(a.s ?? 2),
-    p: bclamp(a.p ?? 3),
     y: Math.max(0, Math.min(2, Number.isInteger(a.y) ? a.y : (a.h ?? 1) % 3)),
-    o: Math.max(0, Math.min(2, Number.isInteger(a.o) ? a.o : 0)),
     e: Math.max(0, Math.min(2, Number.isInteger(a.e) ? a.e : 0)),
   };
 }
@@ -1139,12 +1166,14 @@ const tickLoop = setInterval(() => {
 // main ----------------------------------------------------------------------
 vendorize();
 const n = store.initStore();
-console.log(`[NewBuddy] store: ${n} profiles (data/profiles.json)`);
+console.log(`[DiwalyMeetUp] store: ${n} profiles (data/profiles.json)`);
 server.listen(PORT, () => {
-  console.log(`[NewBuddy] http+ws on http://localhost:${PORT}  (client at /)`);
+  console.log(
+    `[DiwalyMeetUp] http+ws on http://localhost:${PORT}  (client at /)`,
+  );
 });
 
 process.on("SIGINT", () => {
-  console.log("\n[NewBuddy] shutting down");
+  console.log("\n[DiwalyMeetUp] shutting down");
   process.exit(0);
 });

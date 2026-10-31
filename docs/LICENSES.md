@@ -1,18 +1,18 @@
 # Third-party licenses
 
-NewBuddy's own code is original; the only external components are listed
+DiwalyMeetUp's own code is original; the only external components are listed
 below. Full license texts are copied into `docs/LICENSES/` and
 `client/vendor/` so the tree stays self-contained (the server re-copies
 them from `node_modules` on startup if they go missing).
 
-| component                        | version       | license                              | where                            |
-| -------------------------------- | ------------- | ------------------------------------ | -------------------------------- |
-| `three` (3D engine)              | 0.166.x       | MIT — `client/vendor/LICENSE.three`  | `client/vendor/three.module.js`  |
-| `CSS2DRenderer` (three examples) | same as three | MIT (three license)                  | `client/vendor/CSS2DRenderer.js` |
-| `GLTFLoader`, `BufferGeometryUtils`, `SkeletonUtils` (three examples) | same as three | MIT (three license) | `client/vendor/*.js` |
-| `ws` (WebSocket server)          | 8.x           | MIT — `docs/LICENSES/ws-license.txt` | `node_modules` (server only)     |
-| Ready Player Me sample avatars   | 2023 export   | Ready Player Me terms (see below)    | `client/assets/avatars/*.glb`    |
-| RPM Animation Library clips      | 1.0 (2023)    | RPM Animation Library license (below) | `client/assets/anims/*.glb`    |
+| component                                                             | version       | license                               | where                            |
+| --------------------------------------------------------------------- | ------------- | ------------------------------------- | -------------------------------- |
+| `three` (3D engine)                                                   | 0.166.x       | MIT — `client/vendor/LICENSE.three`   | `client/vendor/three.module.js`  |
+| `CSS2DRenderer` (three examples)                                      | same as three | MIT (three license)                   | `client/vendor/CSS2DRenderer.js` |
+| `GLTFLoader`, `BufferGeometryUtils`, `SkeletonUtils` (three examples) | same as three | MIT (three license)                   | `client/vendor/*.js`             |
+| `ws` (WebSocket server)                                               | 8.x           | MIT — `docs/LICENSES/ws-license.txt`  | `node_modules` (server only)     |
+| Ready Player Me sample avatars                                        | 2023 export   | Ready Player Me terms (see below)     | `client/assets/avatars/*.glb`    |
+| RPM Animation Library clips                                           | 1.0 (2023)    | RPM Animation Library license (below) | `client/assets/anims/*.glb`      |
 
 ## Character assets
 

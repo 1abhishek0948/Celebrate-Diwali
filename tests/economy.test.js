@@ -22,7 +22,7 @@ import { normalize, buy, use } from "../server/economy.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 3998;
 const URL = `ws://localhost:${PORT}`;
-const TMP_DATA = path.join(os.tmpdir(), `NewBuddy-eco-${process.pid}`);
+const TMP_DATA = path.join(os.tmpdir(), `DiwalyMeetUp-eco-${process.pid}`);
 
 let proc = null;
 
@@ -122,7 +122,7 @@ const newToken = () => randomBytes(16).toString("hex");
 async function login(token = newToken(), name = "EcoTester") {
   const c = connect();
   await c.opened;
-  c.send({ t: "hello", token, name, av: { b: 0, h: 1, s: 2, p: 3 } });
+  c.send({ t: "hello", token, name, av: { b: 0, h: 1 } });
   const w = await c.next((m) => m.t === "welcome", 6000);
   const wallet = await c.next((m) => m.t === "wallet", 6000);
   return { ...c, id: w.id, x: w.x, z: w.z, wallet };

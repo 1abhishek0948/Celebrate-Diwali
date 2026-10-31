@@ -37,7 +37,7 @@ class Bot {
         t: "hello",
         token: this.token,
         name: this.name,
-        av: { b: i % 4, h: i % 6, s: i % 4, p: i % 4 },
+        av: { b: i % 4, h: i % 6 },
       });
     });
     this.ws.on("message", (d) => {
@@ -73,7 +73,7 @@ class Bot {
   }
 }
 
-console.log(`NewBuddy load test: ${N} bots @ ${URL} for ${DURATION_S}s`);
+console.log(`DiwalyMeetUp load test: ${N} bots @ ${URL} for ${DURATION_S}s`);
 const t0 = Date.now();
 const bots = [];
 for (let i = 0; i < N; i++) bots.push(new Bot(i));
@@ -100,7 +100,7 @@ const p = (arr, q) =>
 const sum = (arr) => arr.reduce((a, b) => a + b, 0);
 
 const report = [
-  `# NewBuddy load test — ${new Date().toISOString()}`,
+  `# DiwalyMeetUp load test — ${new Date().toISOString()}`,
   "",
   `Bots: ${N} | Duration: ${DURATION_S}s | Server: ${URL}`,
   "",

@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
-    <title>NewBuddy — Social Island</title>
+    <title>DiwalyMeetUp — Social village</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link
       rel="icon"
@@ -30,7 +30,7 @@
         <div class="hud-chip" id="hud-chip">
           <span class="dot" id="hud-dot"></span>
           <span id="hud-name">…</span>
-          <span class="hud-room" id="hud-room">island-1</span>
+          <span class="hud-room" id="hud-room" title="ping 0 ms">village-1</span>
         </div>
 
         <div class="hud-wallet" id="wallet-chip" title="Diwali Coins">
@@ -41,8 +41,9 @@
           <button
             class="icon-btn"
             id="btn-players"
-            title="Players"
+            title="Players (P)"
             aria-label="Players"
+            data-key="P"
           >
             <svg
               viewBox="0 0 24 24"
@@ -77,8 +78,9 @@
           <button
             class="icon-btn"
             id="btn-friends"
-            title="Friends"
+            title="Friends (B)"
             aria-label="Friends"
+            data-key="B"
           >
             <svg
               viewBox="0 0 24 24"
@@ -94,8 +96,9 @@
           <button
             class="icon-btn"
             id="btn-voice"
-            title="Voice"
+            title="Voice (V)"
             aria-label="Voice"
+            data-key="V"
           >
             <svg
               viewBox="0 0 24 24"
@@ -110,10 +113,27 @@
           <button
             class="icon-btn time-btn"
             id="btn-timeofday"
-            title="Switch to day"
+            title="Switch to day (T)"
             aria-label="Switch to day"
+            data-key="T"
           >
             ☀
+          </button>
+          <button
+            class="icon-btn"
+            id="btn-fullscreen"
+            title="Fullscreen (G)"
+            aria-label="Fullscreen"
+            data-key="G"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
+            </svg>
           </button>
           <button
             class="icon-btn"
@@ -173,9 +193,9 @@
         </form>
 
         <div id="emote-bar">
-          <button data-emote="wave">Wave</button>
-          <button data-emote="dance">Dance</button>
-          <button data-emote="greet">Greet</button>
+          <button data-emote="wave" data-key="1">Wave</button>
+          <button data-emote="dance" data-key="2">Dance</button>
+          <button data-emote="greet" data-key="3">Greet</button>
         </div>
 
         <div id="fx-bar" hidden aria-label="Firecracker quick-use bar"></div>
@@ -184,9 +204,16 @@
         <!-- mobile controls -->
         <div id="touch-controls" hidden>
           <div id="joystick"><div id="joy-knob"></div></div>
+          <button id="btn-use" hidden>Use</button>
           <button id="btn-jump">Jump</button>
         </div>
         <div id="cam-touch" hidden></div>
+
+        <footer class="game-footer">
+          <span>Diwali Village</span>
+          <span aria-hidden="true">•</span>
+          <span>Celebrate with kindness</span>
+        </footer>
       </div>
 
       <!-- toasts live above both the HUD and modal screens so purchase / error

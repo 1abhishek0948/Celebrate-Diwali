@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
-// Festival of Lights — an immersive night overlay for the NewBuddy island,
-// inspired by ancient Nepalese (Newari) and Tibetan mountain villages.
+// Festival of Lights — an immersive night overlay for the DiwalyMeetUp island,
+// inspired by ancient Nepalese (Newari) and Tibetan mountain islands.
 //
 // Everything here is procedural and self-contained, matching the project's
 // "no external assets / no build step" design (see docs/ROADMAP.md): the
@@ -49,7 +49,7 @@ const TEXT_FONT =
   'bold {S}px Georgia, "Times New Roman", "Nimbus Roman", serif';
 const TEXT_WIDTH = 144; // world-space width of the widest line
 const TEXT_Y = 42; // centre height above the ground
-const TEXT_Z = 150; // over the main stone pathway, centred on the village
+const TEXT_Z = 150; // over the main stone pathway, centred on the island
 const TEXT_DEPTH = 5.5; // extrusion depth of the lettering
 const TEXT_REVEAL = 3.4; // seconds of the golden particle reveal
 
@@ -1615,7 +1615,7 @@ export class Festival {
       im.setMatrixAt(i, M);
     };
 
-    // string / fairy bulbs — one draw call for the whole village
+    // string / fairy bulbs — one draw call for the whole island
     const S = this._decoStrings;
     if (S.length) {
       const im = new THREE.InstancedMesh(
@@ -2024,7 +2024,7 @@ export class Festival {
     this.fwPoints = new THREE.Points(
       g,
       new THREE.PointsMaterial({
-        size: 4.4,
+        size: 5.0,
         map: this._softTexture(32, [
           [0, "rgba(255,255,255,1)"],
           [0.4, "rgba(255,255,255,0.5)"],
@@ -2035,6 +2035,9 @@ export class Festival {
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         sizeAttenuation: true,
+        // burning stars glow through the night haze — without this the scene
+        // fog (150→1100) fades every distant sky burst into the backdrop
+        fog: false,
       }),
     );
     this.fwPoints.frustumCulled = false;
@@ -2258,7 +2261,6 @@ export class Festival {
     }
     this.fwLight.position.set(x, y, z);
     this.fwFlash = 1;
-    this._puff(x, y, z, 2.2, 2.4, 0.7);
   }
 
   _aerialShot() {
@@ -2288,7 +2290,9 @@ export class Festival {
       vy: this._rr(30, 46),
       fuse: this._rr(1.0, 1.9),
       acc: 0,
-      smoke: 0,
+      // ~40% of ambient rockets crackle once mid-climb before the main bloom
+      dbl: this.rand() < 0.4,
+      broke: false,
       col: this._pick(this.fwColors),
       type: this._pick(this.fwTypes),
     });
@@ -2375,13 +2379,34 @@ export class Festival {
           );
         }
       }
-      // rising smoke
-      rk.smoke += dt;
-      if (rk.smoke > 0.08) {
-        rk.smoke = 0;
-        this._puff(rk.x, rk.y, rk.z, 0.35, this._rr(1.4, 2.2), 0.55);
-      }
       if (rk.fuse <= 0) {
+        // double-break rocket: a small crackle pop on the way up, then the
+        // shell keeps climbing a beat before the main bloom opens
+        if (rk.dbl && !rk.broke) {
+          rk.broke = true;
+          for (let s = 0; s < 46; s++) {
+            const u = this.rand() * 2 - 1,
+              th = this.rand() * Math.PI * 2;
+            const sq = Math.sqrt(1 - u * u),
+              sp = this._rr(5, 10);
+            this._spark(
+              rk.x,
+              rk.y,
+              rk.z,
+              Math.cos(th) * sq * sp,
+              u * sp,
+              Math.sin(th) * sq * sp,
+              1.0,
+              0.9,
+              0.72,
+              this._rr(0.5, 0.9),
+              1.1,
+            );
+          }
+          rk.fuse = this._rr(0.32, 0.5);
+          rk.vy *= 0.92;
+          continue;
+        }
         if (rk.player)
           this.lastPlayerBurst = { x: rk.x, y: rk.y, z: rk.z, t: this.time };
         this._fwBurst(rk.x, rk.y, rk.z, rk.col, rk.type);
@@ -2390,12 +2415,16 @@ export class Festival {
         this.rockets.splice(i, 1);
       }
     }
-    // schedule the show — rockets and direct aerial shots at varied heights
+    // schedule the show — rockets and direct aerial shots at varied heights.
+    // Denser than before: a full festival sky, with a burst roughly every
+    // 1.5 s and occasional triple salvos (pool budget stays ~1/3 used).
     this.nextBurst -= dt;
     if (this.nextBurst <= 0) {
-      this.nextBurst = this._rr(1.7, 3.8) * (this.reduceMotion ? 1.6 : 1);
-      if (this.rand() < 0.55) this._launchRocket();
-      else this._aerialShot();
+      this.nextBurst = this._rr(0.9, 2.2) * (this.reduceMotion ? 1.6 : 1);
+      for (let s = 0; s < 2; s++) {
+        if (this.rand() < 0.55) this._launchRocket();
+        else this._aerialShot();
+      }
       if (hi && !this.reduceMotion && this.rand() < 0.4) {
         if (this.rand() < 0.5) this._launchRocket();
         else this._aerialShot();
@@ -2725,18 +2754,18 @@ export class Festival {
           c.acc -= 1;
           const col = this._pick(this.sparkCols);
           const a = this.rand() * Math.PI * 2;
-          const sp = this._rr(0.3, 2.6);            // thin sideways scatter
+          const sp = this._rr(0.3, 2.6); // thin sideways scatter
           this._pfxSpark(
             c.x + Math.cos(a) * 0.04,
             0.53 + this._rr(-0.02, 0.07),
             c.z + Math.sin(a) * 0.04,
             Math.cos(a) * sp,
-            this._rr(2.6, 6.5),                      // spray reaches 0.5-2.8 m
+            this._rr(2.6, 6.5), // spray reaches 0.5-2.8 m
             Math.sin(a) * sp,
             col[0],
             col[1],
             col[2],
-            this._rr(0.55, 1.3),                     // falls back while still lit
+            this._rr(0.55, 1.3), // falls back while still lit
             0.95,
           );
           // a few heavier sparks — they slow down, curve down, then thud to the ground
@@ -2752,14 +2781,15 @@ export class Festival {
               this._rr(0.88, 1),
               0.62,
               this._rr(0.8, 1.5),
-              2.1,                            // heavy -> strong gravity
+              2.1, // heavy -> strong gravity
             );
           }
         }
         if (this.rand() < dt * 2)
           this._puff(c.x, 1.1, c.z, 0.45, this._rr(1.1, 1.9), 0.4);
         // the burning clay vent breathes: scale its glowing tip, not the shared material
-        if (c.tip) c.tip.scale.setScalar(1 + 0.14 * Math.sin(this.time * 24 + c.phase));
+        if (c.tip)
+          c.tip.scale.setScalar(1 + 0.14 * Math.sin(this.time * 24 + c.phase));
         // occasional bright "pop": a ring of brighter, faster sparks
         if (this.rand() < dt * 2.2) {
           c.flash = 1;
@@ -3185,7 +3215,9 @@ export class Festival {
       vz: (-Math.cos(ry) * travel) / fuse,
       fuse,
       acc: 0,
-      smoke: 0,
+      // half of bought rockets put on the double-break show
+      dbl: rng() < 0.5,
+      broke: false,
       player: !!self,
       bought: true,
       // Bought rockets always open a dense, full bloom (ambient rockets keep
@@ -3222,7 +3254,6 @@ export class Festival {
     const col2 = this._pick(this.fwColors);
     this._fwBurst(bx2, by2, bz2, col2, this._nextBurstType());
     this._burstFlash(bx2, by2, bz2, col2);
-    this._puff(x, 1.2, z, 0.7, 1.6, 0.5);
   }
 
   // Handheld sparkler attached to a character rig (own or remote).
@@ -3297,8 +3328,12 @@ export class Festival {
       if (c.type === "anar") {
         if (active) {
           // the burning clay vent breathes: scale its glowing tip mesh
-          if (c.tip) c.tip.scale.setScalar(1 + 0.14 * Math.sin(this.time * 24 + c.phase));
-          c.glow.opacity = (0.45 + 0.25 * Math.sin(this.time * 24 + c.phase)) * ramp;
+          if (c.tip)
+            c.tip.scale.setScalar(
+              1 + 0.14 * Math.sin(this.time * 24 + c.phase),
+            );
+          c.glow.opacity =
+            (0.45 + 0.25 * Math.sin(this.time * 24 + c.phase)) * ramp;
           c.acc += c.rate * rateF * dt;
           while (c.acc >= 1) {
             c.acc -= 1;
@@ -3351,7 +3386,8 @@ export class Festival {
           c.angle += c.spin * (1.1 + c.flash * 1.5) * dt;
           c.spinner.rotation.y = c.angle;
           c.glow.opacity =
-            (0.34 + 0.25 * Math.abs(Math.sin(c.angle * 0.5)) + c.flash * 0.5) * ramp;
+            (0.34 + 0.25 * Math.abs(Math.sin(c.angle * 0.5)) + c.flash * 0.5) *
+            ramp;
           // spark intensity grows as the wheel spins up -> brighter centre ring
           const intensity = Math.min(1, (c.t + 0.5) / 1.6);
           c.acc += c.rate * rateF * intensity * dt;

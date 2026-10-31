@@ -1,6 +1,6 @@
 # Architecture
 
-NewBuddy is an authoritative real-time world. The server owns truth
+DiwalyMeetUp is an authoritative real-time world. The server owns truth
 (positions, rooms, houses, seats, friends); clients render and interpolate.
 All game data is exchanged as small JSON frames over one WebSocket per player.
 
@@ -41,7 +41,7 @@ All game data is exchanged as small JSON frames over one WebSocket per player.
   are corrected in place (moved _toward_ the claimed point within budget),
   so a client can never teleport; spamming `st` faster than the 100
   msg/s guard earns nothing because the budget is time-based.
-- Island rooms cap at `MAX_PLAYERS_PER_ISLAND` (100); house rooms at 12.
+- island rooms cap at `MAX_PLAYERS_PER_island` (100); house rooms at 12.
 - House rooms have a persistent owner + mode (`public`/`friends`/`private`);
   entry checks mode + invites + friendship.
 

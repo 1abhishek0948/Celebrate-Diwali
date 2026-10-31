@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// NewBuddy shared constants + island layout data.
+// DiwalyMeetUp shared constants + island layout data.
 // Imported by BOTH the Node server (ESM) and the browser client (import map),
 // so movement limits, room geometry and door positions can never drift apart.
 // All units are metres / seconds; Y is up.
@@ -25,7 +25,7 @@ export const GROUND_Y = 0.0;
 export const WORLD_HALF = 500; // 1000m x 1000m target world
 export const PLAY_RADIUS = 452; // soft radial clamp of the main island
 export const INTEREST_RADIUS = 80; // send remote updates within this distance
-export const MAX_PLAYERS_PER_ISLAND = 100; // hard cap per island room (see LOADTEST report)
+export const MAX_PLAYERS_PER_island = 100; // hard cap per island room (see LOADTEST report)
 
 // --- Voice ------------------------------------------------------------------
 export const VOICE_RADIUS = 45; // audible range
@@ -37,7 +37,7 @@ export const CHAT_MAX_LEN = 200;
 export const MSG_RATE_PER_S = 80; // any opcode frames per rolling 2s window (per socket)
 export const MAX_MSG_BYTES = 16 * 1024;
 
-// --- Island layout ----------------------------------------------------------
+// --- island layout ----------------------------------------------------------
 // Main avenues + ring road (drawn by client, walk area implied on both sides).
 export const ROADS = {
   avenueHalfWidth: 6, // asphalt half width
@@ -61,8 +61,13 @@ export function houseHalfSize() {
   return { hx: 5, hz: 4 };
 }
 
-// Residential plots are placed along the north street.
+// Residential plots. The original rows sit along the north streets; the
+// expanded island adds rows on the east (right), west (left) and south
+// (front) sides so the playable area is ringed by houses on all sides.
+// ry: Math.PI keeps every footprint axis-aligned (see world._buildResidential)
+// and keeps plotDoorPos()/door triggers consistent for the server.
 export const HOUSE_PLOTS = [
+  // north (back) rows — original island
   { id: "house-1", x: -90, z: 132, ry: Math.PI }, // faces street to the south
   { id: "house-2", x: -60, z: 132, ry: Math.PI },
   { id: "house-3", x: 60, z: 132, ry: Math.PI },
@@ -71,6 +76,26 @@ export const HOUSE_PLOTS = [
   { id: "house-6", x: 90, z: 252, ry: Math.PI },
   { id: "house-7", x: -60, z: 252, ry: Math.PI },
   { id: "house-8", x: 60, z: 252, ry: Math.PI },
+  // north row extension (outside the ±90 corners)
+  { id: "house-9", x: -132, z: 132, ry: Math.PI },
+  { id: "house-10", x: 132, z: 132, ry: Math.PI },
+  { id: "house-11", x: -132, z: 252, ry: Math.PI },
+  { id: "house-12", x: 132, z: 252, ry: Math.PI },
+  // east (right) column — clear of the +x avenue (|z| > 8) and the ring road
+  { id: "house-13", x: 132, z: 90, ry: Math.PI },
+  { id: "house-14", x: 132, z: 60, ry: Math.PI },
+  { id: "house-15", x: 132, z: -60, ry: Math.PI },
+  { id: "house-16", x: 132, z: -90, ry: Math.PI },
+  // west (left) column — clear of the beach bar and bonfire
+  { id: "house-17", x: -132, z: 90, ry: Math.PI },
+  { id: "house-18", x: -132, z: 60, ry: Math.PI },
+  { id: "house-19", x: -132, z: -60, ry: Math.PI },
+  { id: "house-20", x: -132, z: -90, ry: Math.PI },
+  // south (front) rows — flanking the commercial street, clear of the shops
+  { id: "house-21", x: -90, z: -132, ry: Math.PI },
+  { id: "house-22", x: 90, z: -132, ry: Math.PI },
+  { id: "house-23", x: -90, z: -252, ry: Math.PI },
+  { id: "house-24", x: 90, z: -252, ry: Math.PI },
 ];
 
 // Door world position of each plot (registered server-side as trigger zones).
@@ -205,7 +230,7 @@ export const FIREWORKS = [
     maxStack: 99,
     icon: "rocket",
     tagline: "Soars then bursts",
-    desc: "Lifts off on a sparkling tail and bursts high above the village.",
+    desc: "Lifts off on a sparkling tail and bursts high above the island.",
   },
   {
     id: "aerial",
@@ -256,4 +281,4 @@ export function fireworkById(id) {
 export const BEACH_BAR = { x: -262, z: 40, ry: 0 };
 
 // --- Room naming -------------------------------------------------------------
-export const ISLAND_ROOM_PREFIX = "island-";
+export const island_ROOM_PREFIX = "island-";

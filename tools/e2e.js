@@ -96,35 +96,46 @@ const waitFor = async (expr, ms = 8000, step = 300) => {
 // 1. boot
 check(
   "game booted + screens built",
-  await evalJs(`!!window.__NewBuddy && !!window.__NewBuddy.ui.screens.welcome`),
+  await evalJs(
+    `!!window.__DiwalyMeetUp && !!window.__DiwalyMeetUp.ui.screens.welcome`,
+  ),
 );
 
 // 2. drive flow: set name, enter world
 await evalJs(
-  `window.__NewBuddy.setName('E2E-Test'); window.__NewBuddy.enterWorld(); 'ok'`,
+  `window.__DiwalyMeetUp.setName('E2E-Test'); window.__DiwalyMeetUp.enterWorld(); 'ok'`,
 );
 await sleep(2500);
 
 check(
   "ws welcome received",
-  await evalJs(`window.__NewBuddy.net.welcomed === true`),
+  await evalJs(`window.__DiwalyMeetUp.net.welcomed === true`),
 );
-check("local rig spawned", await evalJs(`!!window.__NewBuddy.rig`));
-check("in island room", await evalJs(`window.__NewBuddy.room === 'island-1'`));
+check("local rig spawned", await evalJs(`!!window.__DiwalyMeetUp.rig`));
+check(
+  "in island room",
+  await evalJs(`window.__DiwalyMeetUp.room === 'island-1'`),
+);
 const pos = await evalJs(
-  `({x: window.__NewBuddy.controller.pos.x, y: window.__NewBuddy.controller.pos.y, z: window.__NewBuddy.controller.pos.z})`,
+  `({x: window.__DiwalyMeetUp.controller.pos.x, y: window.__DiwalyMeetUp.controller.pos.y, z: window.__DiwalyMeetUp.controller.pos.z})`,
 );
 check("spawned near plaza (r<40)", !!pos && Math.hypot(pos.x, pos.z) < 45, pos);
 
-// 2b. every avatar is built from the procedural primitive rig (no external
-// model); confirm the local male rig spawned as a plain CharacterRig.
-const av = await evalJs(`(() => {
-  const r = window.__NewBuddy.rig;
-  return r ? { female: r.female, hasBody: !!r.body, isGroup: !!(r.body && r.body.isGroup) } : null;
+// 2b. the local rig must be the realistic Ready Player Me avatar (mocap clips
+// + AnimationMixer), not the procedural primitive fallback. The GLB loads
+// asynchronously, so poll until the implementation settles first.
+const av = await waitFor(`(() => {
+  const impl = window.__DiwalyMeetUp.rig?._impl;
+  if (!impl) return null;
+  return {
+    hasMixer: !!impl?.mixer,
+    clipCount: impl?.inst?.clips ? Object.keys(impl.inst.clips).length : 0,
+    isProceduralFallback: !!impl?.palette,
+  };
 })()`);
 check(
-  "male rig uses the procedural primitive body",
-  !!av && !av.female && av.hasBody && av.isGroup,
+  "male rig is the realistic RPM avatar (5 mocap clips)",
+  !!av && av.hasMixer && av.clipCount === 5 && !av.isProceduralFallback,
   av,
 );
 
@@ -138,7 +149,7 @@ bot.send(
     t: "hello",
     token: "9abc9abc9abc9abc9abc9abc9abc9abc",
     name: "Bot Buddy",
-    av: { b: 2, h: 4, s: 6, p: 0 },
+    av: { b: 2, h: 4 },
   }),
 );
 await sleep(1200);
@@ -146,7 +157,7 @@ bot.send(JSON.stringify({ t: "st", seq: 1, x: 8, y: 0, z: 4, ry: 1, mode: 1 }));
 
 // browser should see the remote after snapshot+join
 const botOf = () =>
-  `[...window.__NewBuddy.remotePlayers.values()].find((r) => r.name === 'Bot Buddy')`;
+  `[...window.__DiwalyMeetUp.remotePlayers.values()].find((r) => r.name === 'Bot Buddy')`;
 const remote = await waitFor(
   `(() => { const r=${botOf()}; return r ? {name: r.name, x: r.rig.root.position.x} : null; })()`,
 );
@@ -199,26 +210,25 @@ clearInterval(mover);
 
 // 4. chat roundtrip (server echo back to browser)
 bot.send(JSON.stringify({ t: "chat", text: "hello island!" }));
-await sleep(900);
-const chatOk = await evalJs(
+const chatOk = await waitFor(
   `[...document.querySelectorAll('#chat-log .chat-line')].some((n) => n.textContent.includes('hello island!'))`,
 );
-check("chat visible in HUD", chatOk);
+check("chat visible in HUD", !!chatOk);
 
 // 5. house door interaction from the browser side is exercised by server tests;
 // here verify world assets + interpolation buffers exist
 check(
   "island world has colliders",
-  await evalJs(`window.__NewBuddy.world.colliders.length > 20`),
+  await evalJs(`window.__DiwalyMeetUp.world.colliders.length > 20`),
 );
 check(
   "interiors built",
-  await evalJs(`window.__NewBuddy.world.interiors.size === 8`),
+  await evalJs(`window.__DiwalyMeetUp.world.interiors.size === 8`),
 );
 check(
   "snapshot buffer flowing",
   await evalJs(
-    `[...window.__NewBuddy.remotePlayers.values()].some(r => r.buf.length > 0)`,
+    `[...window.__DiwalyMeetUp.remotePlayers.values()].some(r => r.buf.length > 0)`,
   ),
 );
 
