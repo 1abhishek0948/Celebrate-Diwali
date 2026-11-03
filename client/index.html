@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
-    <title>DiwalyMeetUp — Social village</title>
+    <title>Diwali Meet Up — Social village</title>
     <link rel="stylesheet" href="/css/style.css" />
     <link
       rel="icon"
@@ -30,11 +30,26 @@
         <div class="hud-chip" id="hud-chip">
           <span class="dot" id="hud-dot"></span>
           <span id="hud-name">…</span>
-          <span class="hud-room" id="hud-room" title="ping 0 ms">village-1</span>
+          <span class="hud-room" id="hud-room" title="ping 0 ms"
+            >village-1</span
+          >
         </div>
 
         <div class="hud-wallet" id="wallet-chip" title="Diwali Coins">
           <span class="coin">🪙</span><span id="wallet-balance">7500</span>
+        </div>
+
+        <div class="compass" id="compass" aria-hidden="true">
+          <div class="compass-window">
+            <div class="compass-clip">
+              <div class="compass-tape" id="compass-tape"></div>
+            </div>
+            <span class="compass-caret"></span>
+          </div>
+          <div class="compass-readout">
+            <span id="compass-cardinal">N</span>
+            <span id="compass-degrees">000°</span>
+          </div>
         </div>
 
         <div class="hud-topright">

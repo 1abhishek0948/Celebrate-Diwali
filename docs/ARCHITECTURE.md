@@ -1,6 +1,6 @@
 # Architecture
 
-DiwalyMeetUp is an authoritative real-time world. The server owns truth
+Diwali Meet Up is an authoritative real-time world. The server owns truth
 (positions, rooms, houses, seats, friends); clients render and interpolate.
 All game data is exchanged as small JSON frames over one WebSocket per player.
 

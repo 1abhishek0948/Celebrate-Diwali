@@ -29,6 +29,13 @@ const $ = (id) => document.getElementById(id);
 const WALLET_KEY = "DiwalyMeetUp.wallet";
 const EQUIPPED_KEY = "DiwalyMeetUp.equipped";
 
+// Horizontal compass tape: three repeated 360° cycles let the strip scroll
+// smoothly through north without a visible jump.
+const COMPASS_LABELS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+const COMPASS_PPD = 3; // pixels per degree
+const COMPASS_CYCLE = 360 * COMPASS_PPD;
+const COMPASS_COPIES = 3;
+
 function loadWalletCache() {
   try {
     const w = JSON.parse(localStorage.getItem(WALLET_KEY) || "null");
@@ -169,6 +176,7 @@ class Game {
     this._useLock = false;
 
     this._initThree();
+    this._initCompass();
     this.ui = new UI(this);
     this.controller = new Controller({
       canvas: $("gl"),
@@ -263,6 +271,66 @@ class Game {
     this.world.setViewport(innerWidth / innerHeight, this.camera.fov);
     this.setTimeOfDay("night");
     this._enableWorldShadows();
+  }
+
+  // -------------------------------------------------------------- compass --
+  _initCompass() {
+    const tape = $("compass-tape");
+    if (!tape) return;
+    this._compassTape = tape;
+    this._compassCardinal = $("compass-cardinal");
+    this._compassDegrees = $("compass-degrees");
+    this._compassDir = new THREE.Vector3();
+    this._compassHeading = null;
+    tape.style.width = `${COMPASS_CYCLE * COMPASS_COPIES}px`;
+
+    const frag = document.createDocumentFragment();
+    for (let copy = 0; copy < COMPASS_COPIES; copy++) {
+      for (let deg = 0; deg < 360; deg += 15) {
+        const x = (copy * 360 + deg) * COMPASS_PPD;
+        const tick = document.createElement("span");
+        tick.className =
+          "compass-tick" +
+          (deg % 90 === 0 ? " cardinal" : deg % 45 === 0 ? " major" : "");
+        tick.style.left = `${x}px`;
+        frag.appendChild(tick);
+
+        if (deg % 45 === 0) {
+          const label = document.createElement("span");
+          label.textContent = COMPASS_LABELS[deg / 45];
+          label.className =
+            "compass-label" +
+            (deg % 90 === 0 ? " cardinal" : "") +
+            (deg === 0 ? " north" : "");
+          label.style.left = `${x}px`;
+          frag.appendChild(label);
+        }
+      }
+    }
+    tape.appendChild(frag);
+    this._updateCompass();
+  }
+
+  _updateCompass() {
+    if (!this._compassTape || !this.camera || !this._compassDir) return;
+    this.camera.getWorldDirection(this._compassDir);
+    const heading =
+      ((Math.atan2(this._compassDir.x, this._compassDir.z) * 180) / Math.PI +
+        360) %
+      360;
+    this._compassTape.style.transform =
+      `translate3d(${-COMPASS_CYCLE - heading * COMPASS_PPD}px, 0, 0)`;
+
+    const rounded = Math.round(heading) % 360;
+    if (this._compassHeading === rounded) return;
+    this._compassHeading = rounded;
+    if (this._compassCardinal) {
+      const dir = COMPASS_LABELS[Math.round(rounded / 45) % 8];
+      this._compassCardinal.textContent = dir;
+    }
+    if (this._compassDegrees) {
+      this._compassDegrees.textContent = `${String(rounded).padStart(3, "0")}°`;
+    }
   }
 
   // Real shadows: the moon directional light casts through a tight ortho
@@ -919,6 +987,7 @@ class Game {
     if (this.playing && this.rig) {
       this.controller.update(dt);
       this._updateShadowFollow();
+      this._updateCompass();
 
       // send state at 15 Hz
       if (tNow - this._lastSend > 1000 / 15) {

@@ -97,27 +97,27 @@ const waitFor = async (expr, ms = 8000, step = 300) => {
 check(
   "game booted + screens built",
   await evalJs(
-    `!!window.__DiwalyMeetUp && !!window.__DiwalyMeetUp.ui.screens.welcome`,
+    `!!window.__Diwali Meet Up && !!window.__Diwali Meet Up.ui.screens.welcome`,
   ),
 );
 
 // 2. drive flow: set name, enter world
 await evalJs(
-  `window.__DiwalyMeetUp.setName('E2E-Test'); window.__DiwalyMeetUp.enterWorld(); 'ok'`,
+  `window.__Diwali Meet Up.setName('E2E-Test'); window.__Diwali Meet Up.enterWorld(); 'ok'`,
 );
 await sleep(2500);
 
 check(
   "ws welcome received",
-  await evalJs(`window.__DiwalyMeetUp.net.welcomed === true`),
+  await evalJs(`window.__Diwali Meet Up.net.welcomed === true`),
 );
-check("local rig spawned", await evalJs(`!!window.__DiwalyMeetUp.rig`));
+check("local rig spawned", await evalJs(`!!window.__Diwali Meet Up.rig`));
 check(
   "in island room",
-  await evalJs(`window.__DiwalyMeetUp.room === 'island-1'`),
+  await evalJs(`window.__Diwali Meet Up.room === 'island-1'`),
 );
 const pos = await evalJs(
-  `({x: window.__DiwalyMeetUp.controller.pos.x, y: window.__DiwalyMeetUp.controller.pos.y, z: window.__DiwalyMeetUp.controller.pos.z})`,
+  `({x: window.__Diwali Meet Up.controller.pos.x, y: window.__Diwali Meet Up.controller.pos.y, z: window.__Diwali Meet Up.controller.pos.z})`,
 );
 check("spawned near plaza (r<40)", !!pos && Math.hypot(pos.x, pos.z) < 45, pos);
 
@@ -125,7 +125,7 @@ check("spawned near plaza (r<40)", !!pos && Math.hypot(pos.x, pos.z) < 45, pos);
 // + AnimationMixer), not the procedural primitive fallback. The GLB loads
 // asynchronously, so poll until the implementation settles first.
 const av = await waitFor(`(() => {
-  const impl = window.__DiwalyMeetUp.rig?._impl;
+  const impl = window.__Diwali Meet Up.rig?._impl;
   if (!impl) return null;
   return {
     hasMixer: !!impl?.mixer,
@@ -157,7 +157,7 @@ bot.send(JSON.stringify({ t: "st", seq: 1, x: 8, y: 0, z: 4, ry: 1, mode: 1 }));
 
 // browser should see the remote after snapshot+join
 const botOf = () =>
-  `[...window.__DiwalyMeetUp.remotePlayers.values()].find((r) => r.name === 'Bot Buddy')`;
+  `[...window.__Diwali Meet Up.remotePlayers.values()].find((r) => r.name === 'Bot Buddy')`;
 const remote = await waitFor(
   `(() => { const r=${botOf()}; return r ? {name: r.name, x: r.rig.root.position.x} : null; })()`,
 );
@@ -219,16 +219,16 @@ check("chat visible in HUD", !!chatOk);
 // here verify world assets + interpolation buffers exist
 check(
   "island world has colliders",
-  await evalJs(`window.__DiwalyMeetUp.world.colliders.length > 20`),
+  await evalJs(`window.__Diwali Meet Up.world.colliders.length > 20`),
 );
 check(
   "interiors built",
-  await evalJs(`window.__DiwalyMeetUp.world.interiors.size === 8`),
+  await evalJs(`window.__Diwali Meet Up.world.interiors.size === 8`),
 );
 check(
   "snapshot buffer flowing",
   await evalJs(
-    `[...window.__DiwalyMeetUp.remotePlayers.values()].some(r => r.buf.length > 0)`,
+    `[...window.__Diwali Meet Up.remotePlayers.values()].some(r => r.buf.length > 0)`,
   ),
 );
 

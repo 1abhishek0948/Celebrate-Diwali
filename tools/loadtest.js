@@ -73,7 +73,7 @@ class Bot {
   }
 }
 
-console.log(`DiwalyMeetUp load test: ${N} bots @ ${URL} for ${DURATION_S}s`);
+console.log(`Diwali Meet Up load test: ${N} bots @ ${URL} for ${DURATION_S}s`);
 const t0 = Date.now();
 const bots = [];
 for (let i = 0; i < N; i++) bots.push(new Bot(i));
@@ -100,7 +100,7 @@ const p = (arr, q) =>
 const sum = (arr) => arr.reduce((a, b) => a + b, 0);
 
 const report = [
-  `# DiwalyMeetUp load test — ${new Date().toISOString()}`,
+  `# Diwali Meet Up load test — ${new Date().toISOString()}`,
   "",
   `Bots: ${N} | Duration: ${DURATION_S}s | Server: ${URL}`,
   "",

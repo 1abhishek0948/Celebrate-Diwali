@@ -30,7 +30,7 @@ const server = spawn(process.execPath, ["server/index.js"], {
   env: {
     ...process.env,
     PORT: String(SERVER_PORT),
-    DiwalyMeetUp_ALLOW_TELEPORT: "1",
+    DiwaliMeetUp_ALLOW_TELEPORT: "1",
   },
   stdio: ["ignore", "pipe", "pipe"],
 });
@@ -121,11 +121,11 @@ async function enterWorld(pg, name) {
   await pg.send("Page.navigate", { url: APP });
   await sleep(3000);
   await pg.evalJs(
-    `window.__DiwalyMeetUp.setName(${JSON.stringify(name)}); window.__DiwalyMeetUp.enterWorld(); 'ok'`,
+    `window.__Diwali Meet Up.setName(${JSON.stringify(name)}); window.__Diwali Meet Up.enterWorld(); 'ok'`,
   );
   await sleep(2200);
   return pg.evalJs(
-    `({ id: window.__DiwalyMeetUp.id, welcomed: window.__DiwalyMeetUp.net.welcomed })`,
+    `({ id: window.__Diwali Meet Up.id, welcomed: window.__Diwali Meet Up.net.welcomed })`,
   );
 }
 const aInfo = await enterWorld(A, "VoiceAlice");
@@ -138,7 +138,7 @@ check("both clients connected", !!(aInfo?.welcomed && bInfo?.welcomed), {
 // park both players next to each other (4 m apart, well inside VOICE_RADIUS)
 async function park(pg, x, z) {
   await pg.evalJs(`(() => {
-    const g = window.__DiwalyMeetUp;
+    const g = window.__Diwali Meet Up;
     g.controller.pos.set(${x}, 0, ${z});
     g.net.send({ t: 'st', seq: 999, x: ${x}, y: 0, z: ${z}, ry: 0, mode: 0, debugPos: { x: ${x}, z: ${z} } });
     return true;
@@ -148,7 +148,7 @@ await park(A, 2, 8);
 await park(B, -2, 8);
 await sleep(1200);
 const closeEnough = await A.evalJs(`(() => {
-  const g = window.__DiwalyMeetUp;
+  const g = window.__Diwali Meet Up;
   const rp = [...g.remotePlayers.values()][0];
   return rp ? Math.hypot(rp.rig.root.position.x - g.controller.pos.x, rp.rig.root.position.z - g.controller.pos.z) : null;
 })()`);
@@ -158,11 +158,11 @@ check("players within voice range", closeEnough !== null && closeEnough < 45, {
 
 // A enables the mic first; B stays silent for a while (B is not listening yet,
 // so A's first offer is ignored -> the retry path must recover).
-const aMic = await A.evalJs(`window.__DiwalyMeetUp.voice.enableMic()`);
+const aMic = await A.evalJs(`window.__Diwali Meet Up.voice.enableMic()`);
 check("A microphone enabled (fake device)", aMic === true, { aMic });
 await sleep(2500);
 
-const bMic = await B.evalJs(`window.__DiwalyMeetUp.voice.enableMic()`);
+const bMic = await B.evalJs(`window.__Diwali Meet Up.voice.enableMic()`);
 check("B microphone enabled late (fake device)", bMic === true, { bMic });
 
 // wait for the retry to establish both directions
@@ -170,7 +170,7 @@ async function waitConnected(pg, ms) {
   const until = Date.now() + ms;
   while (Date.now() < until) {
     const ok = await pg.evalJs(
-      `[...window.__DiwalyMeetUp.voice.peers.values()].some((p) => p.pc.connectionState === 'connected')`,
+      `[...window.__Diwali Meet Up.voice.peers.values()].some((p) => p.pc.connectionState === 'connected')`,
     );
     if (ok) return true;
     await sleep(700);
@@ -183,7 +183,7 @@ check("A peer connection established", aConn);
 check("B peer connection established", bConn);
 
 const peerStates = await A.evalJs(
-  `[...window.__DiwalyMeetUp.voice.peers.values()].map((p) => ({ state: p.pc.connectionState, ice: p.pc.iceConnectionState }))`,
+  `[...window.__Diwali Meet Up.voice.peers.values()].map((p) => ({ state: p.pc.connectionState, ice: p.pc.iceConnectionState }))`,
 );
 check(
   "A sees a connected peer",
@@ -197,7 +197,7 @@ async function waitInbound(pg, ms) {
   let last = null;
   while (Date.now() < until) {
     last = await pg.evalJs(`(async () => {
-      const p = [...window.__DiwalyMeetUp.voice.peers.values()][0];
+      const p = [...window.__Diwali Meet Up.voice.peers.values()][0];
       if (!p) return null;
       const stats = await p.pc.getStats();
       let bytes = 0, packets = 0;
@@ -222,10 +222,10 @@ check("incoming volume set from distance falloff", !!(aIn && aIn.volume > 0), {
 });
 
 // mute regression: muting MY mic must not silence my speakers
-await A.evalJs(`window.__DiwalyMeetUp.voice.toggleMic()`);
+await A.evalJs(`window.__Diwali Meet Up.voice.toggleMic()`);
 await sleep(400);
 const muteState = await A.evalJs(`(() => {
-  const g = window.__DiwalyMeetUp;
+  const g = window.__Diwali Meet Up;
   const p = [...g.voice.peers.values()][0];
   return { micMuted: g.voice.micMuted, trackEnabled: g.voice.stream.getAudioTracks()[0].enabled, speakerVolume: p ? p.audio.volume : null };
 })()`);
@@ -241,10 +241,10 @@ check(
 );
 
 // listen-only mode: mic off, still connected and receiving
-await A.evalJs(`window.__DiwalyMeetUp.voice.disableMic()`);
+await A.evalJs(`window.__Diwali Meet Up.voice.disableMic()`);
 await sleep(1200);
 const listenState = await A.evalJs(`(() => {
-  const g = window.__DiwalyMeetUp;
+  const g = window.__Diwali Meet Up;
   const p = [...g.voice.peers.values()][0];
   return { listening: g.voice.listening, status: g.voice.status, peers: g.voice.peers.size, state: p ? p.pc.connectionState : null };
 })()`);

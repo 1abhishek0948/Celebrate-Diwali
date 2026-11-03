@@ -1,6 +1,6 @@
 # Third-party licenses
 
-DiwalyMeetUp's own code is original; the only external components are listed
+Diwali Meet Up's own code is original; the only external components are listed
 below. Full license texts are copied into `docs/LICENSES/` and
 `client/vendor/` so the tree stays self-contained (the server re-copies
 them from `node_modules` on startup if they go missing).

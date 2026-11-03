@@ -95,7 +95,7 @@ export class UI {
     // ---- 1. welcome / login ------------------------------------------------
     this._register("welcome", "Welcome", (n) => {
       const panel = el("div", "panel");
-      panel.appendChild(el("h1", "brand", "DiwalyMeetUp"));
+      panel.appendChild(el("h1", "brand", "Diwali Meet Up"));
       panel.appendChild(
         el(
           "p",
@@ -375,7 +375,7 @@ export class UI {
     this._register("menu", "Menu", (n) => {
       const panel = el("div", "panel");
       panel.style.textAlign = "center";
-      panel.appendChild(el("h1", "brand", "DiwalyMeetUp"));
+      panel.appendChild(el("h1", "brand", "Diwali Meet Up"));
       const profPill = el("p", "sub");
       panel.appendChild(profPill);
       const b1 = el("button", "btn", "Celebrate with World");
@@ -551,7 +551,9 @@ export class UI {
   _loadSettings() {
     let saved = {};
     try {
-      saved = JSON.parse(localStorage.getItem("DiwalyMeetUp.settings") || "{}");
+      saved = JSON.parse(
+        localStorage.getItem("Diwali Meet Up.settings") || "{}",
+      );
     } catch {
       saved = {};
     }
@@ -566,7 +568,7 @@ export class UI {
   }
   _saveSettings() {
     localStorage.setItem(
-      "DiwalyMeetUp.settings",
+      "Diwali Meet Up.settings",
       JSON.stringify(this.settings),
     );
   }
@@ -1220,7 +1222,7 @@ export class UI {
       el(
         "p",
         "muted",
-        `Device key: ${(localStorage.getItem("DiwalyMeetUp.token") || "").slice(0, 8)}…`,
+        `Device key: ${(localStorage.getItem("Diwali Meet Up.token") || "").slice(0, 8)}…`,
       ),
       stats,
     );

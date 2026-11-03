@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// DiwalyMeetUp shared constants + island layout data.
+// Diwali Meet Up shared constants + island layout data.
 // Imported by BOTH the Node server (ESM) and the browser client (import map),
 // so movement limits, room geometry and door positions can never drift apart.
 // All units are metres / seconds; Y is up.
@@ -43,6 +43,8 @@ export const ROADS = {
   avenueHalfWidth: 6, // asphalt half width
   sidewalkHalfWidth: 1.6, // sidewalk band half width around asphalt
   ringRadius: 210,
+  // pull the ends of the main avenues back from the ring road by this many units
+  avenueEndGap: 7,
 };
 
 // Plaza at origin

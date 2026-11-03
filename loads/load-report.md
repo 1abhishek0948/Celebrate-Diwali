@@ -1,4 +1,4 @@
-# DiwalyMeetUp load test — 2026-10-23T08:15:45.997Z
+# Diwali Meet Up load test — 2026-10-23T08:15:45.997Z
 
 Bots: 100 | Duration: 45s | Server: ws://localhost:3000
 

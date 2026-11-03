@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Festival of Lights — an immersive night overlay for the DiwalyMeetUp island,
+// Festival of Lights — an immersive night overlay for the Diwali Meet Up island,
 // inspired by ancient Nepalese (Newari) and Tibetan mountain islands.
 //
 // Everything here is procedural and self-contained, matching the project's
@@ -496,26 +496,31 @@ export class Festival {
     this.root.add(plaza);
 
     // stone-paved avenue bands (the "festival street")
-    const avLen = ROADS.ringRadius - PLAZA_RADIUS;
-    const center = PLAZA_RADIUS + avLen / 2;
+    const avLen = ROADS.ringRadius - PLAZA_RADIUS - ROADS.avenueEndGap;
     const halfW = ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth;
     for (const axis of ["x", "z"]) {
-      const m = cobble.clone();
-      m.repeat.set(axis === "x" ? 48 : 7, axis === "x" ? 7 : 48);
-      m.needsUpdate = true;
-      const mat = new THREE.MeshLambertMaterial({ map: m, color: 0xb4ada3 });
-      const geo =
-        axis === "x"
-          ? new THREE.PlaneGeometry(avLen, halfW * 2)
-          : new THREE.PlaneGeometry(halfW * 2, avLen);
-      const box = new THREE.Mesh(geo, mat);
-      box.rotation.x = -Math.PI / 2;
-      box.position.set(
-        axis === "x" ? center : 0,
-        0.07,
-        axis === "x" ? 0 : center,
-      );
-      this.root.add(box);
+      for (const sign of [1, -1]) {
+        const center = sign * (PLAZA_RADIUS + avLen / 2);
+        const m = cobble.clone();
+        m.repeat.set(axis === "x" ? 48 : 7, axis === "x" ? 7 : 48);
+        m.needsUpdate = true;
+        const mat = new THREE.MeshLambertMaterial({
+          map: m,
+          color: 0xb4ada3,
+        });
+        const geo =
+          axis === "x"
+            ? new THREE.PlaneGeometry(avLen, halfW * 2)
+            : new THREE.PlaneGeometry(halfW * 2, avLen);
+        const box = new THREE.Mesh(geo, mat);
+        box.rotation.x = -Math.PI / 2;
+        box.position.set(
+          axis === "x" ? center : 0,
+          0.07,
+          axis === "x" ? 0 : center,
+        );
+        this.root.add(box);
+      }
     }
 
     // glowing rangoli / mandalas — a refined central rangoli that reads as

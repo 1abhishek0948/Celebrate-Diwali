@@ -20,6 +20,7 @@ import {
   PLAY_RADIUS,
 } from "../shared/constants.js";
 import { Festival } from "./festival.js";
+import { makeSoilTextures } from "./soil_texture.js";
 
 // deterministic RNG so clients render the same island for everyone
 export function mulberry32(seed) {
@@ -43,6 +44,7 @@ export class World {
     this.interactables = []; // {kind,id,x,y,z,label}
     this.island = new THREE.Group();
     this.interiors = new Map(); // houseId -> Group
+    this._houseTrees = []; // front-of-house palm spots, planted by _scatterNature
     this.windUniform = { value: 0 }; // drives long-grass sway (see _scatterNature)
 
     this._mkShared();
@@ -71,7 +73,19 @@ export class World {
       plane: new THREE.PlaneGeometry(1, 1),
     };
     this.mats = {
-      grass: mat(0x597f49),
+      // tilled-soil ground: seamless procedural PBR set (see soil_texture.js)
+      soil: (() => {
+        const t = makeSoilTextures();
+        return new THREE.MeshStandardMaterial({
+          map: t.map,
+          bumpMap: t.bumpMap,
+          bumpScale: 1.15,
+          roughnessMap: t.roughnessMap,
+          roughness: 1,
+          metalness: 0,
+        });
+      })(),
+      soilWall: mat(0x453121), // dark earth cross-section under the beach
       sand: mat(0xdfc98d),
       water: new THREE.MeshLambertMaterial({
         color: 0x3f9ad1,
@@ -88,7 +102,6 @@ export class World {
       leaf: mat(0x3f7d3c),
       leaf2: mat(0x4f9444),
       trunk: mat(0x6d4a2f),
-      canopy: mat(0xffffff, { flatShading: true }),
       barkDetail: mat(0x8a6a48),
       grassBlade: new THREE.MeshLambertMaterial({
         color: 0xffffff,
@@ -105,6 +118,8 @@ export class World {
         emissive: 0xffa94d,
         emissiveIntensity: 0.9,
       }),
+      // smooth (non-flat) so instance-colored canopies read as fluffy clumps
+      canopy: mat(0xffffff),
       lampPole: mat(0x3c4048),
       lampBulb: new THREE.MeshBasicMaterial({ color: 0xffe9a8 }),
       awning: mat(0xd85f4a),
@@ -148,10 +163,11 @@ export class World {
     const G = this.island;
     const { geo, mats } = this;
 
-    // ocean floor + island base
+    // ocean floor + island base; the top cap carries the tiled tilled-soil
+    // PBR texture (cap UVs span the disc, repeat handles world-scale tiling)
     const base = new THREE.Mesh(
       new THREE.CylinderGeometry(486, 500, 2, 48),
-      mats.grass,
+      [mats.soilWall, mats.soil, mats.soilWall], // side, top, bottom
     );
     base.position.y = -1;
     G.add(base);
@@ -226,70 +242,78 @@ export class World {
     }
 
     // ---------------- roads ------------------------------------------------
-    const avLenToRing = ROADS.ringRadius - PLAZA_RADIUS;
+    // avenues stop at the ring road's inner sidewalk edge so the black
+    // asphalt never overlaps the ring carriageway
+    const avLenToRing =
+      ROADS.ringRadius -
+      ROADS.avenueHalfWidth -
+      ROADS.sidewalkHalfWidth -
+      PLAZA_RADIUS -
+      ROADS.avenueEndGap;
     for (const axis of ["x", "z"]) {
-      const cy = axis === "x" ? 0 : 1;
-      const center = PLAZA_RADIUS + avLenToRing / 2;
-      const mS = this._box(
-        axis === "x" ? center : 0,
-        0.035,
-        axis === "x" ? 0 : center,
-        axis === "x"
-          ? avLenToRing
-          : 2 * (ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth),
-        0.02,
-        axis === "x"
-          ? 2 * (ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth)
-          : avLenToRing,
-        mats.sidewalk,
-      );
-      mS.userData.noCollide = true;
-      const mR = this._box(
-        axis === "x" ? center : 0,
-        0.05,
-        axis === "x" ? 0 : center,
-        axis === "x" ? avLenToRing : 2 * ROADS.avenueHalfWidth,
-        0.02,
-        axis === "x" ? 2 * ROADS.avenueHalfWidth : avLenToRing,
-        mats.road,
-      );
-      mR.userData.noCollide = true;
-
-      // ring road
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(
-          ROADS.ringRadius - ROADS.avenueHalfWidth,
-          ROADS.ringRadius + ROADS.avenueHalfWidth,
-          72,
-        ),
-        mats.road,
-      );
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 0.045;
-      G.add(ring);
-      const ringWalk1 = new THREE.Mesh(
-        new THREE.RingGeometry(
-          ROADS.ringRadius - ROADS.avenueHalfWidth - ROADS.sidewalkHalfWidth,
-          ROADS.ringRadius - ROADS.avenueHalfWidth,
-          72,
-        ),
-        mats.sidewalk,
-      );
-      ringWalk1.rotation.x = -Math.PI / 2;
-      ringWalk1.position.y = 0.04;
-      G.add(ringWalk1);
-      const ringWalk2 = new THREE.Mesh(
-        new THREE.RingGeometry(
-          ROADS.ringRadius + ROADS.avenueHalfWidth,
-          ROADS.ringRadius + ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth,
-          72,
-        ),
-        mats.sidewalk,
-      );
-      ringWalk2.rotation.x = -Math.PI / 2;
-      ringWalk2.position.y = 0.04;
-      G.add(ringWalk2);
+      for (const sign of [1, -1]) {
+        const center = sign * (PLAZA_RADIUS + avLenToRing / 2);
+        const mS = this._box(
+          axis === "x" ? center : 0,
+          0.035,
+          axis === "x" ? 0 : center,
+          axis === "x"
+            ? avLenToRing
+            : 2 * (ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth),
+          0.02,
+          axis === "x"
+            ? 2 * (ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth)
+            : avLenToRing,
+          mats.sidewalk,
+        );
+        mS.userData.noCollide = true;
+        const mR = this._box(
+          axis === "x" ? center : 0,
+          0.05,
+          axis === "x" ? 0 : center,
+          axis === "x" ? avLenToRing : 2 * ROADS.avenueHalfWidth,
+          0.02,
+          axis === "x" ? 2 * ROADS.avenueHalfWidth : avLenToRing,
+          mats.road,
+        );
+        mR.userData.noCollide = true;
+      }
     }
+
+    // ring road + sidewalks (created once, not once per avenue axis)
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(
+        ROADS.ringRadius - ROADS.avenueHalfWidth,
+        ROADS.ringRadius + ROADS.avenueHalfWidth,
+        72,
+      ),
+      mats.road,
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.045;
+    G.add(ring);
+    const ringWalk1 = new THREE.Mesh(
+      new THREE.RingGeometry(
+        ROADS.ringRadius - ROADS.avenueHalfWidth - ROADS.sidewalkHalfWidth,
+        ROADS.ringRadius - ROADS.avenueHalfWidth,
+        72,
+      ),
+      mats.sidewalk,
+    );
+    ringWalk1.rotation.x = -Math.PI / 2;
+    ringWalk1.position.y = 0.04;
+    G.add(ringWalk1);
+    const ringWalk2 = new THREE.Mesh(
+      new THREE.RingGeometry(
+        ROADS.ringRadius + ROADS.avenueHalfWidth,
+        ROADS.ringRadius + ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth,
+        72,
+      ),
+      mats.sidewalk,
+    );
+    ringWalk2.rotation.x = -Math.PI / 2;
+    ringWalk2.position.y = 0.04;
+    G.add(ringWalk2);
 
     // dashes on the two avenues (instanced)
     {
@@ -297,16 +321,20 @@ export class World {
       const dashes = new THREE.InstancedMesh(
         new THREE.BoxGeometry(2.4, 0.02, 0.3),
         mats.dash,
-        n * 2,
+        n * 4,
       );
       const M = new THREE.Matrix4();
       let i = 0;
       for (let k = 0; k < n; k++) {
         const d = PLAZA_RADIUS + 6 + k * ((avLenToRing - 12) / (n - 1));
-        M.makeTranslation(d, 0.07, 0);
-        dashes.setMatrixAt(i++, M);
-        M.makeTranslation(0, 0.07, d);
-        dashes.setMatrixAt(i++, M);
+        for (const sign of [1, -1]) {
+          M.identity();
+          M.setPosition(sign * d, 0.07, 0);
+          dashes.setMatrixAt(i++, M);
+          M.makeRotationY(Math.PI / 2);
+          M.setPosition(0, 0.07, sign * d);
+          dashes.setMatrixAt(i++, M);
+        }
       }
       G.add(dashes);
     }
@@ -355,6 +383,7 @@ export class World {
     this._buildCommercial();
     this._buildPark();
     this._buildBeach();
+    this._buildCommunityHalls();
     this._scatterNature();
   }
 
@@ -404,6 +433,11 @@ export class World {
       path.position.set(0, 0.03, hz + 2.4);
       path.scale.set(1, 1.8, 1);
       g.add(path);
+      // palms flanking the front path (door side faces world -z; ry = PI)
+      this._houseTrees.push(
+        { x: plot.x + 4.2, z: plot.z - 8.5, s: 0.85 },
+        { x: plot.x - 4.2, z: plot.z - 8.5, s: 0.75 },
+      );
 
       // garden trees at the corners (mini oak: layered blobs + branch)
       for (const tx of [-8, 8]) {
@@ -418,7 +452,7 @@ export class World {
         limb.position.set(tx + 0.3, 2, -2.35);
         limb.rotation.z = 0.7;
         g.add(limb);
-        const tones = [0x3f7d3c, 0x4f9444, 0x356a34, 0x5aa04a];
+        const tones = [0x46a52c, 0x62c23a, 0x3a9a28, 0x74d048];
         const blobs2 = [
           [tx + 0.2, 2.35, -2.3, 1.25],
           [tx - 0.45, 2.2, -2.15, 0.95],
@@ -758,6 +792,78 @@ export class World {
     this.island.add(g);
   }
 
+  // ------------------------------------------------------- community halls --
+  // One hang-out hall toward each compass point, just outside the ring road,
+  // each facing the plaza. Their yards are registered as tree clearings.
+  _buildCommunityHalls() {
+    const halls = [
+      { id: "hall-n", x: 0, z: 230, ry: Math.PI }, // faces back toward plaza
+      { id: "hall-e", x: 230, z: 0, ry: -Math.PI / 2 },
+      { id: "hall-s", x: 0, z: -230, ry: 0 },
+      { id: "hall-w", x: -230, z: 0, ry: Math.PI / 2 },
+    ];
+    for (const h of halls) {
+      const g = new THREE.Group();
+      g.position.set(h.x, 0, h.z);
+      g.rotation.y = h.ry;
+      const body = this._box(0, 2.6, 0, 22, 5.2, 14, this.mats.wall, g);
+      body.material = this.mats.wall2;
+      const roof = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.01, 13.5, 3, 4),
+        this.mats.roof2,
+      );
+      roof.rotation.y = Math.PI / 4;
+      roof.position.set(0, 6.7, 0);
+      roof.scale.set(1.25, 1, 0.95);
+      g.add(roof);
+      const door = new THREE.Mesh(this.geo.plane, this.mats.door);
+      door.scale.set(3, 3.4, 1);
+      door.position.set(0, 1.7, 7.05);
+      g.add(door);
+      for (const wx of [-7, 7]) {
+        const win = new THREE.Mesh(this.geo.plane, this.mats.window);
+        win.scale.set(2.6, 1.8, 1);
+        win.position.set(wx, 3, 7.03);
+        g.add(win);
+      }
+      const sign = new THREE.Mesh(this.geo.plane, signMaterial("COMMUNITY HALL"));
+      sign.scale.set(9, 1.4, 1);
+      sign.position.set(0, 5.6, 7.08);
+      g.add(sign);
+      // festive bulb row over the entrance
+      for (let i = -3; i <= 3; i++) {
+        const bulb = new THREE.Mesh(this.geo.sphere, this.mats.lampBulb);
+        bulb.scale.setScalar(0.16);
+        bulb.position.set(i * 1.6, 4.6 + (i % 2 ? 0 : 0.3), 7.15);
+        g.add(bulb);
+      }
+      this.island.add(g);
+      // ry is a multiple of 90°, so the rotated footprint stays axis-aligned
+      const along = Math.abs(Math.sin(h.ry)) > 0.5;
+      const ex = along ? 7 : 11;
+      const ez = along ? 11 : 7;
+      this._addCollider({
+        type: "aabb",
+        x0: h.x - ex,
+        x1: h.x + ex,
+        z0: h.z - ez,
+        z1: h.z + ez,
+        h: 7,
+      });
+      const dx = Math.sin(h.ry),
+        dz = Math.cos(h.ry);
+      this.interactables.push({
+        kind: "greet",
+        id: h.id,
+        x: h.x + dx * 9,
+        z: h.z + dz * 9,
+        label: "Hang out at the community hall",
+      });
+      // keep the scattered forest out of the hall yard
+      this.festival.clearings.push({ x: h.x, z: h.z, r: 24 });
+    }
+  }
+
   // is (x,z) free of roads/plaza/pond/buildings/bar? shared by trees & grass
   _natureSpotOk(x, z) {
     const r = Math.hypot(x, z);
@@ -767,9 +873,9 @@ export class World {
       if (Math.hypot(x - c.x, z - c.z) < c.r) return false;
     }
     const sw = ROADS.avenueHalfWidth + ROADS.sidewalkHalfWidth + 1.2;
-    if (Math.abs(z) < sw && Math.abs(x) < ROADS.ringRadius + 8 && x > 34)
+    if (Math.abs(z) < sw && Math.abs(x) < ROADS.ringRadius + 8 && Math.abs(x) > 34)
       return false;
-    if (Math.abs(x) < sw && Math.abs(z) < ROADS.ringRadius + 8 && z > 34)
+    if (Math.abs(x) < sw && Math.abs(z) < ROADS.ringRadius + 8 && Math.abs(z) > 34)
       return false;
     if (
       Math.abs(r - ROADS.ringRadius) <
@@ -823,6 +929,22 @@ export class World {
     return g;
   }
 
+  // a drooping palm frond: unit strip along +z, the tip sagging toward -y
+  _frondGeometry() {
+    const g = new THREE.BufferGeometry();
+    const pos = [
+      -0.16, 0, 0, 0.16, 0, 0, // base pair
+      -0.11, -0.16, 1.05, 0.11, -0.16, 1.05,
+      -0.06, -0.46, 1.95, 0.06, -0.46, 1.95,
+      0, -0.72, 2.6, // tip
+    ];
+    const idx = [0, 1, 3, 0, 3, 2, 2, 3, 5, 2, 5, 4, 4, 5, 6];
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  }
+
   _scatterNature() {
     const rng = mulberry32(1234);
     const M = new THREE.Matrix4();
@@ -841,6 +963,8 @@ export class World {
     const trunks = [],
       branches = [],
       blobs = [],
+      pineTiers = [],
+      fronds = [],
       blades = [];
     const SC = new THREE.Vector3();
     const push = (list, x, y, z, sx, sy, sz, tiltZ, ry, color) => {
@@ -899,83 +1023,186 @@ export class World {
       spots.push([x, z, rng()]); // third slot: pre-rolled species roll
     }
 
-    // species profiles: tall canopy trees vs medium trees (+ a few small ones)
-    for (const [x, z, roll] of spots) {
-      const isTall = roll < 0.38;
-      const isSmall = !isTall && roll > 0.94;
-      const h = isTall
-        ? 9 + rng() * 4
-        : isSmall
-          ? 3.1 + rng() * 1
-          : 4.6 + rng() * 2.4;
-      const spread = isTall ? 2.6 : isSmall ? 0.9 : 1.5;
-      const trunkTint = tint(0.07, 0.32, 0.3, 0.03, 0.08, 0.07);
+    // plant one tree of `kind` ('oak' | 'pine' | 'palm' | 'small') at (x, z);
+    // sc scales the whole plant. Shared by the scattered forest, the plaza
+    // palm ring and the house-front palms.
+    const plantTree = (x, z, kind, sc = 1) => {
+      const isPine = kind === "pine";
+      const isSmall = kind === "small";
+      const h =
+        (isPine
+          ? 7 + rng() * 2.5
+          : isSmall
+            ? 3.1 + rng() * 1
+            : 4.6 + rng() * 2.6) * sc;
+      const trunkTint = tint(0.065, 0.42, 0.32, 0.02, 0.08, 0.06);
 
-      push(
-        trunks,
-        x,
-        h / 2,
-        z,
-        (isTall ? 1.15 : 0.75) + rng() * 0.4,
-        h,
-        (isTall ? 1.15 : 0.75) + rng() * 0.4,
-        (rng() - 0.5) * 0.05,
-        rng() * 6.3,
-        trunkTint,
-      );
-
-      const crown = h + 0.35;
-
-      // branches hugging the top of the trunk, tucked under the canopy
-      const nb = isSmall ? 1 : 2 + ((rng() * 2) | 0);
-      for (let b = 0; b < nb; b++) {
-        const ba = b * ((Math.PI * 2) / nb) + rng() * 0.5;
-        push(
-          branches,
-          x + Math.cos(ba) * 0.22,
-          crown - 0.55,
-          z + Math.sin(ba) * 0.22,
-          0.55,
-          1.1 + rng() * 0.9,
-          0.55,
-          0.95 + rng() * 0.4,
-          ba,
-          trunkTint,
-        );
+      if (kind === "palm") {
+        // segmented, slightly leaning trunk + a fan of drooping fronds
+        const H = (7 + rng() * 2.5) * sc;
+        const lean = 0.04 + rng() * 0.05;
+        const segs = 5;
+        for (let i = 0; i < segs; i++) {
+          const f = (i + 0.5) / segs;
+          const r = (0.3 - f * 0.12) * (i % 2 ? 1.14 : 1); // ring bulges
+          push(
+            trunks,
+            x,
+            H * f,
+            z,
+            r,
+            (H / segs) * 1.18,
+            r,
+            lean,
+            rng() * 6.3,
+            tint(0.07, 0.5, 0.34, 0.02, 0.06, 0.05),
+          );
+        }
+        const crownY = H * 1.04;
+        for (let i = 0; i < 8; i++) {
+          const ry2 = (i / 8) * Math.PI * 2 + rng() * 0.35;
+          Q.setFromEuler(new THREE.Euler(0.45 + rng() * 0.3, ry2, 0));
+          M.compose(V.set(x, crownY, z), Q, SC.set(sc, sc, sc));
+          fronds.push({
+            M: M.clone(),
+            c: tint(0.3, 0.66, 0.33, 0.02, 0.08, 0.05),
+          });
+        }
+        // grass skirt around the roots
+        for (let i = 0, n = 5 + ((rng() * 4) | 0); i < n; i++) {
+          const a = rng() * Math.PI * 2,
+            rad = 0.5 + rng() * 1.2;
+          push(
+            blades,
+            x + Math.cos(a) * rad,
+            0,
+            z + Math.sin(a) * rad,
+            0.9,
+            1.1,
+            0.9,
+            (rng() - 0.5) * 0.3,
+            rng() * 6.3,
+            tint(0.3, 0.6, 0.28, 0.03, 0.1, 0.05),
+          );
+        }
+        this._addCollider({ type: "circle", x, z, r: 0.3 });
+        return;
       }
 
-      // layered canopy blobs around the crown
-      const layers = isTall ? 3 : 2;
-      for (let l = 0; l < layers; l++) {
-        const n = 3 + ((rng() * 3) | 0) - l;
-        const ly = crown + l * (isTall ? 1.35 : 0.85);
-        const lr = spread * (1 - l * 0.32);
-        for (let i = 0; i < Math.max(1, n); i++) {
-          const a = (i / n) * Math.PI * 2 + rng() * 0.8;
-          const rad = (rng() - 0.3) * lr;
-          const bx = x + Math.cos(a) * rad,
-            bz = z + Math.sin(a) * rad;
-          const by = ly + (rng() - 0.5) * 0.5;
-          const br =
-            (isTall ? 1.7 : 1.25) + rng() * (isTall ? 1.25 : 0.9) - l * 0.26;
-          // deep green tint; ~8% golden/autumn trees
-          const leafTint =
-            rng() < 0.08
-              ? tint(0.09, 0.62, 0.38, 0.03, 0.1, 0.08)
-              : tint(0.301, 0.5, 0.27, 0.03, 0.1, 0.06);
+      if (isPine) {
+        // conifer: short visible trunk + 4 stacked frond cones, lighter at top
+        push(
+          trunks,
+          x,
+          h * 0.18,
+          z,
+          0.18 + rng() * 0.06,
+          h * 0.42,
+          0.18 + rng() * 0.06,
+          0,
+          rng() * 6.3,
+          trunkTint,
+        );
+        const tiers = 4;
+        for (let t = 0; t < tiers; t++) {
+          const f = t / (tiers - 1); // 0 bottom .. 1 top
+          const tr = (1.9 - f * 1.35) * (0.85 + rng() * 0.3);
+          const th = h * (0.34 - f * 0.1);
+          const ty = h * 0.2 + f * (h - th) * 0.78;
+          push(
+            pineTiers,
+            x,
+            ty,
+            z,
+            tr,
+            th,
+            tr,
+            0,
+            rng() * 6.3,
+            tint(0.36, 0.62, 0.2 + f * 0.1, 0.02, 0.08, 0.05),
+          );
+        }
+      } else {
+        const isTall = kind === "oak";
+        const spread = isTall ? 2.6 : isSmall ? 0.95 : 1.5;
+
+        push(
+          trunks,
+          x,
+          h / 2,
+          z,
+          (isTall ? 0.32 : 0.22) + rng() * 0.1,
+          h,
+          (isTall ? 0.32 : 0.22) + rng() * 0.1,
+          (rng() - 0.5) * 0.05,
+          rng() * 6.3,
+          trunkTint,
+        );
+
+        const crown = h + spread * 0.3;
+
+        // branches peeking out under the canopy (tall trees only)
+        if (isTall) {
+          const nb = 2;
+          for (let b = 0; b < nb; b++) {
+            const ba = b * Math.PI + rng() * 0.6;
+            push(
+              branches,
+              x + Math.cos(ba) * 0.25,
+              crown - 0.5,
+              z + Math.sin(ba) * 0.25,
+              0.55,
+              1.1 + rng() * 0.8,
+              0.55,
+              0.95 + rng() * 0.4,
+              ba,
+              trunkTint,
+            );
+          }
+        }
+
+        // fluffy cartoon canopy: clumps of smooth spheres ringing the crown,
+        // lit from above (lighter greens up top, deeper greens below)
+        const nClumps = isSmall ? 4 : 6 + ((rng() * 4) | 0);
+        for (let i = 0; i < nClumps; i++) {
+          const a = (i / nClumps) * Math.PI * 2 + rng() * 0.9;
+          const rr = spread * (0.35 + rng() * 0.55);
+          const up = crown + (rng() - 0.45) * spread * 0.9;
+          const br = spread * (0.45 + rng() * 0.5);
+          const lit = Math.max(-1, Math.min(1, (up - crown) / spread));
           push(
             blobs,
-            bx,
-            by,
-            bz,
+            x + Math.cos(a) * rr,
+            up,
+            z + Math.sin(a) * rr,
             br,
-            br * (0.75 + rng() * 0.35),
+            br * (0.8 + rng() * 0.25),
             br,
             0,
             rng() * 6.3,
-            leafTint,
+            tint(
+              0.28 + lit * 0.02,
+              0.68 + lit * 0.08,
+              0.26 + lit * 0.09,
+              0.03,
+              0.08,
+              0.05,
+            ),
           );
         }
+        // bright crown cap tying the clumps together
+        push(
+          blobs,
+          x,
+          crown + spread * 0.55,
+          z,
+          spread * 0.9,
+          spread * 0.55,
+          spread * 0.9,
+          0,
+          rng() * 6.3,
+          tint(0.29, 0.72, 0.36, 0.02, 0.06, 0.04),
+        );
       }
 
       // tree colliders (thin circle per trunk; sparse for free walking)
@@ -984,7 +1211,7 @@ export class World {
           type: "circle",
           x,
           z,
-          r: 0.35 + (isTall ? 0.14 : 0),
+          r: isPine ? 0.3 : 0.42,
         });
 
       // long grass tufts at the base of the tree
@@ -1007,7 +1234,19 @@ export class World {
           tint(0.29, 0.5, 0.24, 0.05, 0.16, 0.07),
         );
       }
+    };
+
+    for (const [x, z, roll] of spots) {
+      plantTree(x, z, roll < 0.3 ? "pine" : roll > 0.94 ? "small" : "oak");
     }
+
+    // showcase palms: a ring around the central plaza…
+    for (let k = 0; k < 8; k++) {
+      const a = (k + 0.5) * (Math.PI / 4);
+      plantTree(Math.cos(a) * 54, Math.sin(a) * 54, "palm", k % 2 ? 1.15 : 1);
+    }
+    // …and two flanking every house's front path
+    for (const t of this._houseTrees || []) plantTree(t.x, t.z, "palm", t.s);
 
     // tall-grass meadows: dense grassy fields you can wade through
     const fields = [];
@@ -1055,7 +1294,9 @@ export class World {
 
     const barkGeo = new THREE.CylinderGeometry(0.35, 0.5, 1, 7); // tapered by scale.y
     const branchGeo = new THREE.CylinderGeometry(0.05, 0.11, 1, 5);
-    const blobGeo = new THREE.IcosahedronGeometry(1, 0);
+    const blobGeo = new THREE.SphereGeometry(1, 10, 8); // smooth fluffy clumps
+    const conePine = new THREE.ConeGeometry(1, 1, 9); // pine frond tier
+    const frondGeo = this._frondGeometry(); // palm fronds
     const bladeGeo = this._bladeGeometry();
 
     // wind sway: bend the blades with an injected vertex-shader wave
@@ -1080,6 +1321,8 @@ export class World {
     this.island.add(buildBatch(barkGeo, this.mats.trunk, trunks));
     this.island.add(buildBatch(branchGeo, this.mats.barkDetail, branches));
     this.island.add(buildBatch(blobGeo, this.mats.canopy, blobs));
+    this.island.add(buildBatch(conePine, this.mats.canopy, pineTiers));
+    this.island.add(buildBatch(frondGeo, this.mats.grassBlade, fronds));
     this.island.add(buildBatch(bladeGeo, this.mats.grassBlade, blades));
   }
 

@@ -1,11 +1,11 @@
 // ---------------------------------------------------------------------------
-// DiwalyMeetUp client network layer.
+// Diwali Meet Up client network layer.
 //  - JSON-over-WebSocket protocol (same messages the server tests exercise)
 //  - session resume via device token (reconnect keeps player id + room)
 //  - server clock estimation for snapshot interpolation (ping/pong)
 // ---------------------------------------------------------------------------
-const TOKEN_KEY = "DiwalyMeetUp.token";
-const PROFILE_KEY = "DiwalyMeetUp.profile";
+const TOKEN_KEY = "Diwali Meet Up.token";
+const PROFILE_KEY = "Diwali Meet Up.profile";
 
 export function deviceToken() {
   let t = localStorage.getItem(TOKEN_KEY);

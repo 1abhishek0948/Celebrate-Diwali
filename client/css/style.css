@@ -1,5 +1,5 @@
 /* ===========================================================================
-   DiwalyMeetUp design system
+   Diwali Meet Up design system
    Palette generations: deep slate base + coral accent + cyan highlight.
    =========================================================================== */
 :root {
@@ -768,6 +768,136 @@ ul.list li {
 .hud-chip .hud-room {
   color: var(--ink-dim);
   font-size: 0.75rem;
+}
+
+/* ---- horizontal compass tape -------------------------------------------- */
+.compass {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  width: clamp(260px, 28vw, 400px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.compass-window {
+  position: relative;
+  width: 100%;
+  height: 46px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(19, 28, 46, 0.8),
+    rgba(13, 20, 33, 0.92)
+  );
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+.compass-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    #000 12%,
+    #000 88%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    #000 12%,
+    #000 88%,
+    transparent 100%
+  );
+}
+.compass-tape {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 3240px;
+  height: 100%;
+  will-change: transform;
+}
+.compass-tick {
+  position: absolute;
+  bottom: 5px;
+  width: 1px;
+  height: 6px;
+  border-radius: 1px;
+  background: rgba(147, 164, 199, 0.42);
+  transform: translateX(-0.5px);
+}
+.compass-tick.major {
+  height: 10px;
+  background: rgba(234, 240, 255, 0.58);
+}
+.compass-tick.cardinal {
+  height: 13px;
+  background: rgba(255, 206, 140, 0.82);
+}
+.compass-label {
+  position: absolute;
+  top: 9px;
+  color: rgba(147, 164, 199, 0.88);
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  transform: translateX(-50%);
+}
+.compass-label.cardinal {
+  color: var(--ink);
+  font-size: 0.7rem;
+}
+.compass-label.north {
+  color: #ffc66e;
+  text-shadow: 0 0 8px rgba(255, 196, 90, 0.45);
+}
+.compass-caret {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    var(--accent-2) 0%,
+    rgba(53, 208, 197, 0.2) 72%,
+    transparent 100%
+  );
+  opacity: 0.85;
+  transform: translateX(-0.5px);
+}
+.compass-caret::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-top: 6px solid var(--accent-2);
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  filter: drop-shadow(0 0 4px rgba(53, 208, 197, 0.65));
+  transform: translateX(-50%);
+}
+.compass-readout {
+  display: flex;
+  gap: 5px;
+  color: var(--ink-dim);
+  font-size: 0.62rem;
+  line-height: 1;
+  letter-spacing: 0.13em;
+  text-shadow: 0 1px 4px rgba(3, 8, 20, 0.9);
+}
+#compass-cardinal {
+  color: var(--accent-2);
+  font-weight: 700;
 }
 
 .hud-topright {
@@ -1729,5 +1859,23 @@ ul.list li {
   }
   .stat span {
     font-size: 0.58rem;
+  }
+}
+
+@media (max-width: 1120px) {
+  .compass {
+    top: 64px;
+    width: min(420px, calc(100vw - 28px));
+  }
+}
+
+@media (max-width: 640px) {
+  .compass {
+    top: 92px;
+    width: calc(100vw - 28px);
+    max-width: 360px;
+  }
+  .compass-window {
+    height: 42px;
   }
 }

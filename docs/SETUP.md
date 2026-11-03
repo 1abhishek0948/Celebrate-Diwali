@@ -19,12 +19,12 @@ session by design.
 
 ## Environment variables (server)
 
-| var                           | default | meaning                                                                                                                                                                 |
-| ----------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PORT`                        | `3000`  | HTTP + WebSocket port                                                                                                                                                   |
-| `ALLOWED_ORIGINS`             | —       | comma list of extra origins allowed in the WS `Origin` header (LAN testing). `http://localhost:*` and the serving host are always allowed                               |
-| `DiwalyMeetUp_ALLOW_TELEPORT` | off     | dev-only: allows the `st` field `debugPos` to teleport a player (bypasses the movement budget). Normal movement validation is unchanged. Tests run with this set to `1` |
-| `DiwalyMeetUp_DEBUG_MSG`      | off     | log every received message type to stderr                                                                                                                               |
+| var                             | default | meaning                                                                                                                                                                 |
+| ------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                          | `3000`  | HTTP + WebSocket port                                                                                                                                                   |
+| `ALLOWED_ORIGINS`               | —       | comma list of extra origins allowed in the WS `Origin` header (LAN testing). `http://localhost:*` and the serving host are always allowed                               |
+| `DiwaliMeetUp_ALLOW_TELEPORT` | off     | dev-only: allows the `st` field `debugPos` to teleport a player (bypasses the movement budget). Normal movement validation is unchanged. Tests run with this set to `1` |
+| `DiwaliMeetUp_DEBUG_MSG`      | off     | log every received message type to stderr                                                                                                                               |
 
 There is no database: persistent state (names, avatars, friend lists, house
 ownership) lives in `data/profiles.json`, created on first write. Delete it to

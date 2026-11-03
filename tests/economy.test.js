@@ -22,7 +22,7 @@ import { normalize, buy, use } from "../server/economy.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 3998;
 const URL = `ws://localhost:${PORT}`;
-const TMP_DATA = path.join(os.tmpdir(), `DiwalyMeetUp-eco-${process.pid}`);
+const TMP_DATA = path.join(os.tmpdir(), `Diwali Meet Up-eco-${process.pid}`);
 
 let proc = null;
 

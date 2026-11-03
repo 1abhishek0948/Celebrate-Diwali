@@ -1,4 +1,4 @@
-# DiwalyMeetUp
+# Diwali Meet Up
 
 A 3D multiplayer social island — no combat. Walk around a procedurally generated
 island, visit twenty-four houses, sit on furniture, chat, emote, and talk to

@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// DiwalyMeetUp server entry point.
+// Diwali Meet Up server entry point.
 //  - HTTP: static client files (client/, shared/, vendored three.js)
 //  - WS  : lobby, rooms (island instances + private houses), movement
 //          validation, 20Hz snapshots, chat, friends, invites, voice signaling.
@@ -41,7 +41,7 @@ const EXTRA_ORIGINS = String(process.env.ALLOWED_ORIGINS || "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
-const DEBUG_TELEPORT = process.env.DiwalyMeetUp_ALLOW_TELEPORT === "1";
+const DEBUG_TELEPORT = process.env.DiwaliMeetUp_ALLOW_TELEPORT === "1";
 
 // ---------------------------------------------------------------------------
 // Static file serving (client + shared + vendored three.js from node_modules)
@@ -269,7 +269,7 @@ wss.on("connection", (ws) => {
       return;
     }
     if (!msg || typeof msg.t !== "string" || !rateOk(ws)) return;
-    if (process.env.DiwalyMeetUp_DEBUG_MSG)
+    if (process.env.DiwaliMeetUp_DEBUG_MSG)
       process.stderr.write(`[msg] ${msg.t}\n`);
     const h = handlers[msg.t];
     if (!h) return;
@@ -1166,14 +1166,14 @@ const tickLoop = setInterval(() => {
 // main ----------------------------------------------------------------------
 vendorize();
 const n = store.initStore();
-console.log(`[DiwalyMeetUp] store: ${n} profiles (data/profiles.json)`);
+console.log(`[Diwali Meet Up] store: ${n} profiles (data/profiles.json)`);
 server.listen(PORT, () => {
   console.log(
-    `[DiwalyMeetUp] http+ws on http://localhost:${PORT}  (client at /)`,
+    `[Diwali Meet Up] http+ws on http://localhost:${PORT}  (client at /)`,
   );
 });
 
 process.on("SIGINT", () => {
-  console.log("\n[DiwalyMeetUp] shutting down");
+  console.log("\n[Diwali Meet Up] shutting down");
   process.exit(0);
 });
