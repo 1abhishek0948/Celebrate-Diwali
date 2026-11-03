@@ -439,6 +439,8 @@ class Game {
     if (this.world?.festival) this.world.festival.armed = true;
     this.world?.festival?.beginReveal?.();
     this.net.connect({ name: this.name || prof.name, av });
+    // Speaker/voice receive is always on; the mic stays opt-in.
+    this.voice.startListening();
     if ("ontouchstart" in window) {
       $("touch-controls").hidden = false;
       $("cam-touch").hidden = false;

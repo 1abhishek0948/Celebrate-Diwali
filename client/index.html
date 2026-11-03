@@ -198,20 +198,46 @@
         </div>
 
         <div id="voice-panel" class="glass-panel" hidden>
-          <h3>Voice chat</h3>
-          <button id="voice-mic-btn">Enable microphone</button>
-          <button id="voice-mic-mute">Mute mic</button>
-          <button id="voice-listen-btn">Listen only: off</button>
-          <label class="slider-row"
-            >Speaker volume
-            <input id="voice-vol" type="range" min="0" max="100" value="80" />
-          </label>
-          <p id="voice-status" class="muted">Proximity voice: off</p>
+          <div class="voice-head">
+            <h3>Voice chat</h3>
+            <button
+              type="button"
+              class="panel-close"
+              id="voice-close"
+              aria-label="Close voice chat"
+            >
+              ×
+            </button>
+          </div>
+          <p id="voice-status" class="muted">Speaker is on.</p>
+          <button type="button" id="voice-mic-btn" class="btn">
+            Turn on microphone
+          </button>
         </div>
 
         <div id="chat-log" aria-live="polite"></div>
 
         <form id="chat-form" autocomplete="off">
+          <button
+            type="button"
+            id="chat-voice-btn"
+            class="chat-voice"
+            title="Voice chat (V)"
+            aria-label="Voice chat"
+            aria-controls="voice-panel"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <rect x="9" y="2" width="6" height="12" rx="3" />
+              <path d="M5 10a7 7 0 0 0 14 0M12 19v3M8 22h8" />
+            </svg>
+            <span class="chat-voice-label">Voice</span>
+          </button>
           <input id="chat-input" maxlength="200" placeholder="Say something…" />
           <button id="chat-send">Send</button>
         </form>

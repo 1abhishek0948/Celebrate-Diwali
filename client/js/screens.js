@@ -49,10 +49,14 @@ export class UI {
 
     // keep the voice panel live while open; apply saved speaker volume
     this.game.voice.on("change", () => {
+      this._syncVoiceButtons();
       const panel = $("voice-panel");
       if (panel && !panel.hidden) this._renderVoicePanel();
     });
-    this.game.voice.setSpeakerVolume((this.settings.voiceVol ?? 80) / 100);
+    // Speaker is always on; only the microphone is user-controlled.
+    this.game.voice.setSpeakerVolume(1);
+    this._syncVoiceButtons();
+    document.addEventListener("dm:panels", () => this._syncVoiceButtons());
     this.game.setTimeOfDay(this.settings.timeOfDay);
     this._syncTimeButton?.();
   }
@@ -407,20 +411,6 @@ export class UI {
     this._register("settings", "Settings", (n) => {
       const panel = el("div", "panel");
       panel.appendChild(el("h2", "", "Settings"));
-      const vol = el("div", "setting-row");
-      vol.append(el("span", "", "Voice volume"));
-      const vr = el("input");
-      vr.type = "range";
-      vr.min = 0;
-      vr.max = 100;
-      vr.value = this.settings.voiceVol;
-      vr.oninput = () => {
-        this.settings.voiceVol = Number(vr.value);
-        this._saveSettings();
-        this.game.voice.setSpeakerVolume(vr.value / 100);
-      };
-      vol.appendChild(vr);
-      panel.appendChild(vol);
 
       const sens = el("div", "setting-row");
       sens.append(el("span", "", "Camera sensitivity"));
@@ -561,7 +551,6 @@ export class UI {
     return {
       quality: "high",
       timeOfDay: "night",
-      voiceVol: 80,
       sens: 100,
       ...saved,
       quality: "high",
@@ -610,6 +599,11 @@ export class UI {
     $("btn-players").onclick = () => this.togglePlayers();
     $("btn-friends").onclick = () => this.toggleFriends();
     $("btn-voice").onclick = () => this.toggleVoice();
+    $("chat-voice-btn").onclick = () => this.toggleVoice();
+    $("voice-close").onclick = () => {
+      $("voice-panel").hidden = true;
+      this._syncVoiceButtons();
+    };
     $("btn-settings").onclick = () => this.show("settings");
     this._syncTimeButton = () => {
       const b = $("btn-timeofday");
@@ -667,6 +661,7 @@ export class UI {
       this._renderVoicePanel();
       togglePanel("voice-panel");
       closePanels("voice-panel");
+      this._syncVoiceButtons();
     });
   }
   closePanels() {
@@ -1141,17 +1136,29 @@ export class UI {
     }
   }
 
+  _syncVoiceButtons() {
+    const v = this.game.voice;
+    const micOn = !!v.enabled;
+    const panelOpen = !$("voice-panel")?.hidden;
+    for (const id of ["btn-voice", "chat-voice-btn"]) {
+      const b = $(id);
+      if (!b) continue;
+      b.classList.toggle("on", micOn);
+      b.setAttribute("aria-pressed", micOn ? "true" : "false");
+      b.setAttribute("aria-expanded", panelOpen ? "true" : "false");
+    }
+    const label = document.querySelector(".chat-voice-label");
+    if (label) label.textContent = micOn ? "Mic on" : "Voice";
+  }
+
   _renderVoicePanel() {
     const v = this.game.voice;
     const micBtn = $("voice-mic-btn");
-    const muteBtn = $("voice-mic-mute");
-    const listenBtn = $("voice-listen-btn");
 
-    micBtn.textContent = v.enabled ? "Microphone: on" : "Enable microphone";
-    muteBtn.textContent = v.micMuted ? "Unmute mic" : "Mute mic";
-    muteBtn.disabled = !v.enabled;
-    listenBtn.textContent = `Listen only: ${v.listening ? "on" : "off"}`;
-    $("voice-vol").value = Math.round(v.speakerVolume * 100);
+    micBtn.textContent = v.enabled
+      ? "Turn off microphone"
+      : "Turn on microphone";
+    micBtn.classList.toggle("ghost", v.enabled);
 
     const peers = [...v.peers.values()];
     const connected = peers.filter(
@@ -1162,8 +1169,10 @@ export class UI {
       text =
         "Voice needs https:// or http://localhost — plain LAN http blocks the mic.";
     } else {
-      text = `Proximity voice: ${v.status}`;
-      if (v.listening) text += ` · ${connected}/${peers.length} peer(s)`;
+      text = `Speaker on · Mic ${v.enabled ? "on" : "off"}`;
+      if (v.listening && peers.length) {
+        text += ` · ${connected}/${peers.length} nearby`;
+      }
       if (v.status === "denied" && v.lastError) text += ` — ${v.lastError}`;
     }
     $("voice-status").textContent = text;
@@ -1173,18 +1182,7 @@ export class UI {
       else v.disableMic();
       this._renderVoicePanel();
     };
-    muteBtn.onclick = () => {
-      v.toggleMic();
-      this._renderVoicePanel();
-    };
-    listenBtn.onclick = () => {
-      if (v.listening) v.stopListening();
-      else v.startListening();
-      this._renderVoicePanel();
-    };
-    $("voice-vol").oninput = () => {
-      v.setSpeakerVolume(Number($("voice-vol").value) / 100);
-    };
+    this._syncVoiceButtons();
   }
 
   _renderFriendsScreen() {
@@ -1409,11 +1407,13 @@ function togglePanel(id) {
   for (const k of ["players-panel", "friends-panel", "voice-panel"])
     $(k).hidden = true;
   node.hidden = was;
+  document.dispatchEvent(new CustomEvent("dm:panels"));
 }
 function closePanels(except) {
   for (const k of ["players-panel", "friends-panel", "voice-panel"]) {
     if (k !== except) $(k).hidden = true;
   }
+  document.dispatchEvent(new CustomEvent("dm:panels"));
 }
 function startPm(ui, p) {
   ui.pmTo = { id: p.id, name: p.name };
