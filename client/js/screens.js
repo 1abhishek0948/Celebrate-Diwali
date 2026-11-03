@@ -6,6 +6,7 @@
 import * as THREE from "three";
 import { CharacterRig, SKIN, HAIRS } from "./actors.js";
 import { loadProfile, saveProfile } from "./net.js";
+import { isMobileDevice, lockLandscape } from "./orientation.js";
 import {
   FIREWORKS,
   SHOPS,
@@ -690,16 +691,29 @@ export class UI {
       return;
     }
     this.toggleFullscreen = () => {
-      try {
-        if (current()) exit.call(doc);
-        else request.call(el, { navigationUI: "hide" })?.catch?.(() => {});
-      } catch {
-        /* some browsers reject without options — retry bare */
+      if (current()) {
+        exit.call(doc);
+        return;
+      }
+      const afterEnter = () => {
+        if (isMobileDevice()) void lockLandscape();
+      };
+      const requestBare = () => {
         try {
-          if (!current()) request.call(el);
+          const p = request.call(el);
+          if (p?.then) p.then(afterEnter, () => {});
+          else afterEnter();
         } catch {
           /* user gesture / permission issue: nothing else to do */
         }
+      };
+      try {
+        const p = request.call(el, { navigationUI: "hide" });
+        if (p?.then) p.then(afterEnter, requestBare);
+        else afterEnter();
+      } catch {
+        /* some browsers reject options — retry bare */
+        requestBare();
       }
     };
     const ICON_ON =

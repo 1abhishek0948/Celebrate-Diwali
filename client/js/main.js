@@ -18,6 +18,7 @@ import { CharacterRig } from "./actors.js";
 import { Controller } from "./controller.js";
 import { VoiceChat } from "./voice.js";
 import { UI } from "./screens.js";
+import { enterLandscape, isMobileDevice } from "./orientation.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -198,6 +199,7 @@ class Game {
     }
     this._wireNet();
     this._wireTouch();
+    this._initOrientation();
     this._wireEconomyKeys();
     this.ui.bootFlow();
     requestAnimationFrame(() => this._loop(performance.now()));
@@ -421,12 +423,16 @@ class Game {
   }
 
   enterWorld() {
+    // Keep this at the top of the tap handler: fullscreen + orientation lock
+    // are only allowed while the browser still sees a user gesture.
+    void enterLandscape();
     const prof = loadProfile();
     const av = prof.av || this.previewAv;
     this.ui.hideScreens();
     this.ui.show("__none__");
     $("hud").hidden = false;
     this.playing = true;
+    this._syncOrientation?.();
     this.ui.renderWallet(); // instant paint from the local cache
     this.ui.renderQuickBar();
     // arm + start the golden "HAPPY DIWALI" reveal (triggers the look-up intro)
@@ -525,6 +531,33 @@ class Game {
         { passive: false },
       );
     }
+  }
+
+  // ------------------------------------------------------- orientation ------
+  _initOrientation() {
+    this._rotateEl = $("rotate-device");
+    this._syncOrientation = () => {
+      if (!this._rotateEl) return;
+      const viewportPortrait = window.innerHeight > window.innerWidth;
+      // While the orientation lock is active the viewport can report portrait
+      // for a frame or two before the device finishes rotating; don't flash the
+      // guard during that handoff.
+      const fullscreen =
+        document.fullscreenElement || document.webkitFullscreenElement;
+      const lockedLandscape =
+        !!fullscreen && screen.orientation?.type?.startsWith("landscape");
+      const portrait = viewportPortrait && !lockedLandscape;
+      this._rotateEl.hidden = !(
+        this.playing &&
+        portrait &&
+        isMobileDevice()
+      );
+    };
+    window.addEventListener("resize", this._syncOrientation);
+    window.addEventListener("orientationchange", this._syncOrientation);
+    document.addEventListener("fullscreenchange", this._syncOrientation);
+    document.addEventListener("webkitfullscreenchange", this._syncOrientation);
+    this._syncOrientation();
   }
 
   // ------------------------------------------------------ economy / hotkeys ---

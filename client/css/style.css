@@ -788,15 +788,12 @@ ul.list li {
   width: 100%;
   height: 46px;
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: 14px;
-  background: linear-gradient(
-    180deg,
-    rgba(19, 28, 46, 0.8),
-    rgba(13, 20, 33, 0.92)
-  );
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 .compass-clip {
   position: absolute;
@@ -832,6 +829,7 @@ ul.list li {
   height: 6px;
   border-radius: 1px;
   background: rgba(147, 164, 199, 0.42);
+  box-shadow: 0 0 2px rgba(3, 8, 20, 0.8);
   transform: translateX(-0.5px);
 }
 .compass-tick.major {
@@ -850,6 +848,7 @@ ul.list li {
   font-weight: 600;
   line-height: 1;
   letter-spacing: 0.12em;
+  text-shadow: 0 1px 4px rgba(3, 8, 20, 0.9);
   transform: translateX(-50%);
 }
 .compass-label.cardinal {
@@ -1871,11 +1870,296 @@ ul.list li {
 
 @media (max-width: 640px) {
   .compass {
-    top: 92px;
+    top: 104px;
     width: calc(100vw - 28px);
     max-width: 360px;
   }
   .compass-window {
     height: 42px;
+  }
+}
+
+/* ===========================================================================
+   Mobile / tablet HUD
+   =========================================================================== */
+
+/* Softer glass on touch screens: keep the controls readable without heavy
+   blur behind them. */
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+  .icon-btn,
+  #emote-bar button,
+  #chat-form button,
+  #chat-form input,
+  #btn-jump,
+  #btn-use,
+  .fx-slot,
+  #joystick {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .icon-btn {
+    background: rgba(19, 28, 46, 0.52);
+  }
+  .icon-btn.on {
+    background: rgba(249, 115, 98, 0.72);
+  }
+  #emote-bar button {
+    background: rgba(13, 20, 33, 0.56);
+  }
+  #chat-form input {
+    background: rgba(13, 20, 33, 0.52);
+  }
+  #chat-form button {
+    background: rgba(249, 115, 98, 0.7);
+  }
+  #joystick {
+    background: rgba(13, 20, 33, 0.34);
+  }
+  #btn-jump {
+    background: rgba(249, 115, 98, 0.66);
+  }
+  #btn-use {
+    background: rgba(53, 208, 197, 0.66);
+  }
+  #fx-bar {
+    background: rgba(13, 20, 33, 0.4);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .fx-slot {
+    background: rgba(255, 255, 255, 0.07);
+  }
+}
+
+/* Keep the play controls clear of a single bottom chat row. */
+@media (max-width: 1024px) {
+  .game-footer {
+    display: none;
+  }
+
+  #chat-form {
+    left: 50%;
+    right: auto;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    width: min(560px, calc(100vw - 28px));
+    transform: translateX(-50%);
+  }
+  #chat-form input {
+    flex: 1;
+    min-width: 0;
+  }
+  #chat-form button {
+    flex: 0 0 auto;
+  }
+  #chat-log {
+    left: 14px;
+    bottom: calc(390px + env(safe-area-inset-bottom, 0px));
+    width: min(360px, calc(100vw - 28px));
+    max-height: min(20vh, 170px);
+  }
+
+  #joystick {
+    left: calc(16px + env(safe-area-inset-left, 0px));
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    width: clamp(112px, 16vw, 128px);
+    height: clamp(112px, 16vw, 128px);
+  }
+  #btn-jump {
+    right: calc(20px + env(safe-area-inset-right, 0px));
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    width: clamp(64px, 9vw, 74px);
+    height: clamp(64px, 9vw, 74px);
+  }
+  #btn-use {
+    right: calc(20px + env(safe-area-inset-right, 0px));
+    bottom: calc(184px + env(safe-area-inset-bottom, 0px));
+    min-width: clamp(64px, 9vw, 74px);
+    padding: 13px 0;
+  }
+  #emote-bar {
+    left: calc(16px + env(safe-area-inset-left, 0px));
+    bottom: calc(228px + env(safe-area-inset-bottom, 0px));
+    gap: 6px;
+    transform: none;
+  }
+  #emote-bar button {
+    padding: 8px 11px;
+    font-size: 0.72rem;
+  }
+  #fx-bar {
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    bottom: calc(268px + env(safe-area-inset-bottom, 0px));
+    max-width: min(66vw, 500px);
+  }
+  #interact-prompt {
+    bottom: calc(330px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Phones: keep the top action cluster in a tidy 4 + 3 grid so it no longer
+   sits on top of the player chip. */
+@media (max-width: 640px) {
+  #hud-chip {
+    min-width: 0;
+    max-width: calc(100vw - 200px);
+  }
+  #hud-chip .dot {
+    flex: 0 0 auto;
+  }
+  #hud-name {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  #hud-chip .hud-room {
+    display: none;
+  }
+  .hud-topright {
+    width: 170px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .hud-topright .icon-btn {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* Short portrait phones: the full bottom stack leaves no room between the
+   compass and the interaction prompt, so keep the chat log to one visible
+   line in a slimmer band. */
+@media (max-width: 640px) and (max-height: 700px) and (orientation: portrait) {
+  #chat-log {
+    bottom: calc(370px + env(safe-area-inset-bottom, 0px));
+    max-height: 34px;
+  }
+}
+
+/* Short landscape phones: keep the chat and emotes inside a compact bottom
+   band instead of stacking them out of the viewport. */
+@media (max-width: 1024px) and (max-height: 560px) and (orientation: landscape) {
+  #chat-log {
+    top: calc(104px + env(safe-area-inset-top, 0px));
+    bottom: auto;
+    width: min(190px, 22vw);
+    max-height: 60px;
+  }
+  #emote-bar {
+    left: 50%;
+    bottom: calc(62px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+  }
+  #interact-prompt {
+    bottom: calc(188px + env(safe-area-inset-bottom, 0px));
+  }
+  #fx-bar {
+    top: calc(64px + env(safe-area-inset-top, 0px));
+    bottom: auto;
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    max-width: min(18vw, 180px);
+  }
+}
+
+/* ===========================================================================
+   Mobile landscape guard
+   iOS Safari cannot lock orientation, so gameplay shows this until the phone
+   is physically rotated. Android Chrome usually rotates automatically via the
+   fullscreen + Screen Orientation API path.
+   =========================================================================== */
+#rotate-device {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: calc(32px + env(safe-area-inset-top, 0px)) 32px
+    calc(32px + env(safe-area-inset-bottom, 0px));
+  text-align: center;
+  color: var(--ink);
+  pointer-events: auto;
+  touch-action: none;
+  background:
+    radial-gradient(
+      700px 420px at 50% 32%,
+      rgba(249, 115, 98, 0.16),
+      transparent 65%
+    ),
+    radial-gradient(
+      520px 340px at 50% 78%,
+      rgba(53, 208, 197, 0.1),
+      transparent 70%
+    ),
+    #0d1421;
+}
+#rotate-device[hidden] {
+  display: none;
+}
+.rotate-device__phone {
+  position: relative;
+  width: 58px;
+  height: 100px;
+  margin-bottom: 18px;
+  border: 2px solid rgba(234, 240, 255, 0.7);
+  border-radius: 12px;
+  background: rgba(19, 28, 46, 0.85);
+  box-shadow:
+    0 18px 48px rgba(3, 8, 20, 0.6),
+    0 0 40px rgba(249, 115, 98, 0.16);
+  animation: rotateDevice 2.4s ease-in-out infinite;
+}
+.rotate-device__phone::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 16px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(234, 240, 255, 0.55);
+  transform: translateX(-50%);
+}
+.rotate-device__phone::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border: 1px solid rgba(53, 208, 197, 0.7);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+#rotate-device strong {
+  font-size: 1.15rem;
+  letter-spacing: 0.01em;
+}
+#rotate-device p {
+  margin: 0;
+  max-width: 280px;
+  color: var(--ink-dim);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+@keyframes rotateDevice {
+  0%,
+  18% {
+    transform: rotate(0deg);
+  }
+  55%,
+  78% {
+    transform: rotate(90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rotate-device__phone {
+    animation: none;
   }
 }

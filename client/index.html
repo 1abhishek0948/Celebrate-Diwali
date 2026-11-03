@@ -7,6 +7,8 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Diwali Meet Up — Social village</title>
+    <meta name="theme-color" content="#0d1421" />
+    <link rel="manifest" href="/manifest.json" />
     <link rel="stylesheet" href="/css/style.css" />
     <link
       rel="icon"
@@ -21,6 +23,13 @@
       <!-- 3D viewport -->
       <canvas id="gl"></canvas>
       <div id="labels"></div>
+
+      <!-- landscape guard: gameplay is mobile-landscape only -->
+      <div id="rotate-device" role="status" aria-live="polite" hidden>
+        <div class="rotate-device__phone" aria-hidden="true"></div>
+        <strong>Rotate to landscape</strong>
+        <p>Diwali Meet Up plays in landscape mode.</p>
+      </div>
 
       <!-- full-screen flow screens are injected by screens.js into #screens -->
       <div id="screens"></div>

@@ -1,0 +1,11 @@
+{
+  "name": "Diwali Meet Up",
+  "short_name": "Diwali",
+  "description": "A social Diwali village to celebrate with friends.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0d1421",
+  "theme_color": "#0d1421"
+}
