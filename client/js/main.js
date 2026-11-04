@@ -441,7 +441,7 @@ class Game {
     this.net.connect({ name: this.name || prof.name, av });
     // Speaker/voice receive is always on; the mic stays opt-in.
     this.voice.startListening();
-    if ("ontouchstart" in window) {
+    if (isMobileDevice()) {
       $("touch-controls").hidden = false;
       $("cam-touch").hidden = false;
     }
@@ -450,7 +450,7 @@ class Game {
   _wireTouch() {
     const joy = $("joystick"),
       knob = $("joy-knob");
-    if (!("ontouchstart" in window) || !joy) return;
+    if (!isMobileDevice() || !joy) return;
     const R = 50;
     // Track the joystick's own touch id so a second finger (jump / camera /
     // interact) never steals or resets the movement vector (multi-touch).
@@ -611,7 +611,7 @@ class Game {
           ui.showPlaying(() => ui.toggleFriends());
           break;
         case "KeyV":
-          ui.showPlaying(() => ui.toggleVoice());
+          ui.showPlaying(() => ui.toggleMic());
           break;
         case "KeyT":
           ui.showPlaying(() => $("btn-timeofday").click());

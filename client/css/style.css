@@ -752,8 +752,8 @@ ul.list li {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--card);
-  border: 1px solid var(--line);
+  background: rgba(19, 28, 46, 0.42);
+  border: 1px solid rgba(147, 164, 199, 0.28);
   border-radius: 999px;
   padding: 8px 16px 8px 10px;
   backdrop-filter: blur(8px);
@@ -904,15 +904,17 @@ ul.list li {
   position: absolute;
   top: 14px;
   right: 14px;
+  z-index: 8; /* stays tappable above #cam-touch */
   display: flex;
+  flex-wrap: nowrap;
   gap: 10px;
 }
 .icon-btn {
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  border: 1px solid var(--line);
-  background: var(--card);
+  border: 1px solid rgba(147, 164, 199, 0.28);
+  background: rgba(19, 28, 46, 0.32);
   color: var(--ink);
   backdrop-filter: blur(8px);
   display: grid;
@@ -931,12 +933,12 @@ ul.list li {
   line-height: 1;
 }
 .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(19, 28, 46, 0.5);
   transform: translateY(-1px);
 }
 .icon-btn.on {
-  background: var(--accent);
-  border-color: transparent;
+  background: rgba(249, 115, 98, 0.5);
+  border-color: rgba(255, 180, 160, 0.6);
 }
 
 /* keyboard-shortcut hints (desktop only): tiny key cap in the button corner,
@@ -988,67 +990,32 @@ ul.list li {
 .glass-panel .row input {
   margin: 0;
 }
-#voice-panel .btn {
-  margin-bottom: 0;
-}
-#voice-panel .voice-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-#voice-panel .voice-head h3 {
-  margin: 0;
-}
-#voice-panel .panel-close {
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--ink);
-  font: inherit;
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-#voice-panel .panel-close:hover {
-  background: rgba(255, 255, 255, 0.14);
-}
-#voice-panel #voice-status {
-  margin: 0 0 12px;
-  line-height: 1.45;
-}
 .muted {
   color: var(--ink-dim);
   font-size: 0.8rem;
 }
 
-/* chat */
+/* chat — compact message rail */
 #chat-log {
   position: absolute;
+  z-index: 8; /* stays tappable above #cam-touch */
   left: 14px;
-  bottom: 112px;
-  width: min(360px, 70vw);
-  max-height: 190px;
+  bottom: 108px;
+  width: min(300px, 60vw);
+  max-height: 132px;
   overflow: hidden auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   mask-image: linear-gradient(to bottom, transparent 0, #000 14%);
 }
 .chat-line {
-  background: rgba(13, 20, 33, 0.72);
-  border: 1px solid var(--line);
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  line-height: 1.35;
+  background: rgba(13, 20, 33, 0.5);
+  border: 1px solid rgba(147, 164, 199, 0.24);
+  padding: 5px 11px;
+  border-radius: 11px;
+  font-size: 0.78rem;
+  line-height: 1.28;
   backdrop-filter: blur(6px);
   animation: chatIn 0.25s ease;
   width: fit-content;
@@ -1074,6 +1041,7 @@ ul.list li {
 
 #chat-form {
   position: absolute;
+  z-index: 8; /* stays tappable above #cam-touch */
   left: 14px;
   bottom: 62px;
   width: min(430px, 78vw);
@@ -1085,8 +1053,8 @@ ul.list li {
   flex: 1 1 auto;
   min-width: 0;
   width: auto;
-  background: rgba(13, 20, 33, 0.75);
-  border: 1px solid var(--line);
+  background: rgba(13, 20, 33, 0.38);
+  border: 1px solid rgba(147, 164, 199, 0.25);
   border-radius: 999px;
   padding: 9px 16px;
   color: var(--ink);
@@ -1099,11 +1067,19 @@ ul.list li {
 #chat-send {
   border: 0;
   border-radius: 999px;
-  padding: 0 16px;
+  padding: 0 15px;
+  min-width: 44px;
   font-weight: 700;
   cursor: pointer;
-  background: var(--accent);
+  background: rgba(249, 115, 98, 0.45);
   color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#chat-send svg {
+  width: 19px;
+  height: 19px;
 }
 .chat-voice {
   display: inline-flex;
@@ -1112,9 +1088,9 @@ ul.list li {
   gap: 6px;
   min-height: 38px;
   padding: 0 12px;
-  border: 1px solid rgba(53, 208, 197, 0.5);
+  border: 1px solid rgba(53, 208, 197, 0.35);
   border-radius: 999px;
-  background: rgba(13, 20, 33, 0.75);
+  background: rgba(13, 20, 33, 0.32);
   color: var(--ink);
   font: inherit;
   font-size: 0.82rem;
@@ -1150,37 +1126,48 @@ ul.list li {
 
 #emote-bar {
   position: absolute;
+  z-index: 8; /* stays tappable above #cam-touch */
   bottom: 62px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 #emote-bar button {
-  border: 1px solid var(--line);
-  background: rgba(13, 20, 33, 0.8);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(147, 164, 199, 0.28);
+  background: rgba(13, 20, 33, 0.32);
   color: var(--ink);
-  padding: 8px 16px;
+  padding: 9px 18px 9px 12px;
   border-radius: 999px;
-  font-size: 0.82rem;
+  font-size: 0.86rem;
+  font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
   backdrop-filter: blur(6px);
 }
 #emote-bar button:hover {
-  background: var(--accent);
-  border-color: transparent;
+  background: rgba(13, 20, 33, 0.5);
+  border-color: rgba(147, 164, 199, 0.45);
+}
+.emote-glyph {
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 #interact-prompt {
   position: absolute;
+  z-index: 8; /* stays tappable above #cam-touch */
   bottom: 130px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(13, 20, 33, 0.85);
-  border: 1px solid var(--line);
+  background: rgba(13, 20, 33, 0.5);
+  border: 1px solid rgba(147, 164, 199, 0.28);
   border-radius: 12px;
-  padding: 8px 14px;
-  font-size: 0.85rem;
+  padding: 7px 12px;
+  font-size: 0.82rem;
   backdrop-filter: blur(6px);
 }
 #interact-prompt kbd {
@@ -1209,17 +1196,18 @@ ul.list li {
   pointer-events: auto;
 }
 .toast {
-  background: var(--card);
-  border: 1px solid var(--line);
+  background: rgba(19, 28, 46, 0.5);
+  border: 1px solid rgba(147, 164, 199, 0.28);
   border-radius: 999px;
-  padding: 10px 20px;
-  font-size: 0.85rem;
+  padding: 7px 15px;
+  font-size: 0.78rem;
   box-shadow: var(--shadow);
   backdrop-filter: blur(8px);
   animation: chatIn 0.25s ease;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
+  max-width: min(480px, calc(100vw - 40px));
 }
 .toast .btn.small {
   padding: 5px 12px;
@@ -1268,15 +1256,39 @@ ul.list li {
   position: absolute;
   right: 34px;
   bottom: 110px;
-  width: 74px;
-  height: 74px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  border: 1.5px solid var(--line);
-  background: rgba(249, 115, 98, 0.85);
+  border: 2px solid rgba(255, 150, 120, 0.55);
+  background: radial-gradient(
+    circle at 50% 38%,
+    rgba(255, 106, 79, 0.72) 0%,
+    rgba(240, 68, 46, 0.66) 52%,
+    rgba(207, 36, 21, 0.66) 100%
+  );
   color: white;
   font-weight: 800;
-  font-size: 0.9rem;
+  font-size: 0.86rem;
+  letter-spacing: 0.02em;
   backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 0;
+  cursor: pointer;
+  text-shadow: 0 2px 4px rgba(90, 0, 0, 0.6);
+  box-shadow:
+    0 0 22px rgba(255, 84, 56, 0.5),
+    0 12px 34px rgba(160, 20, 5, 0.55),
+    inset 0 2px 5px rgba(255, 255, 255, 0.45),
+    inset 0 -8px 14px rgba(80, 0, 0, 0.45);
+}
+.jump-glyph {
+  width: 34px;
+  height: 34px;
+  filter: drop-shadow(0 2px 2px rgba(90, 0, 0, 0.55));
 }
 #btn-jump.pressed {
   transform: scale(0.92);
@@ -1289,8 +1301,8 @@ ul.list li {
   min-width: 74px;
   padding: 14px 0;
   border-radius: 999px;
-  border: 1.5px solid var(--line);
-  background: rgba(53, 208, 197, 0.9);
+  border: 1px solid rgba(53, 208, 197, 0.35);
+  background: rgba(53, 208, 197, 0.45);
   color: #06282a;
   font-weight: 800;
   font-size: 0.85rem;
@@ -1303,9 +1315,11 @@ ul.list li {
   position: absolute;
   right: 0;
   top: 25%;
+  /* stop above the bottom chat bar so the send/voice buttons are always
+     reachable; the camera drag area stays the upper-right region */
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   width: 40%;
-  bottom: 0;
-  z-index: 6;
+  z-index: 5; /* below #touch-controls (7) and the bottom HUD row (8) */
   touch-action: none;
 }
 /* phones in landscape: keep controls clear of home-indicator / notches and
@@ -1314,23 +1328,6 @@ ul.list li {
   .game-footer {
     bottom: calc(8px + env(safe-area-inset-bottom, 0px));
     font-size: 0.64rem;
-  }
-  #joystick {
-    left: calc(16px + env(safe-area-inset-left));
-    bottom: calc(80px + env(safe-area-inset-bottom));
-    width: 112px;
-    height: 112px;
-  }
-  #btn-jump {
-    right: calc(20px + env(safe-area-inset-right));
-    bottom: calc(92px + env(safe-area-inset-bottom));
-    width: 64px;
-    height: 64px;
-  }
-  #btn-use {
-    right: calc(20px + env(safe-area-inset-right));
-    bottom: calc(176px + env(safe-area-inset-bottom));
-    min-width: 64px;
   }
 }
 
@@ -1378,8 +1375,8 @@ ul.list li {
   display: flex;
   align-items: center;
   gap: 7px;
-  background: var(--card);
-  border: 1px solid rgba(255, 196, 90, 0.35);
+  background: rgba(19, 28, 46, 0.42);
+  border: 1px solid rgba(255, 196, 90, 0.3);
   border-radius: 999px;
   padding: 6px 14px 6px 10px;
   backdrop-filter: blur(8px);
@@ -1406,14 +1403,15 @@ ul.list li {
 
 #fx-bar {
   position: absolute;
+  z-index: 8; /* stays tappable above #cam-touch */
   right: 14px;
   bottom: 108px;
   display: flex;
   gap: 7px;
   padding: 6px;
   border-radius: 16px;
-  background: rgba(13, 20, 33, 0.66);
-  border: 1px solid var(--line);
+  background: rgba(13, 20, 33, 0.38);
+  border: 1px solid rgba(147, 164, 199, 0.24);
   backdrop-filter: blur(8px);
   box-shadow: var(--shadow);
 }
@@ -1981,14 +1979,8 @@ ul.list li {
   #chat-form input {
     background: rgba(13, 20, 33, 0.52);
   }
-  #chat-send {
-    background: rgba(249, 115, 98, 0.7);
-  }
   #joystick {
     background: rgba(13, 20, 33, 0.34);
-  }
-  #btn-jump {
-    background: rgba(249, 115, 98, 0.66);
   }
   #btn-use {
     background: rgba(53, 208, 197, 0.66);
@@ -2003,90 +1995,180 @@ ul.list li {
   }
 }
 
-/* Keep the play controls clear of a single bottom chat row. */
+/* Phone/tablet HUD: emote row hugging the top of a centred bottom chat pill,
+   like the reference mobile layout. The chat pill, emote row, top-right
+   actions and the play controls all carry z-index 7-8 so they stay above the
+   camera drag layer. */
 @media (max-width: 1024px) {
   .game-footer {
     display: none;
   }
 
+  /* every HUD button fires on a single tap */
+  #hud button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* bottom-centred [ mic | input | send ] — half the previous pill width
+     and a fully transparent container; each control keeps its own
+     translucent glass surface so it stays tappable and readable */
   #chat-form {
     left: 50%;
     right: auto;
-    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-    width: min(560px, calc(100vw - 28px));
     transform: translateX(-50%);
-  }
-  #chat-form input,
-  #chat-form button {
-    min-height: 44px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    width: min(280px, calc(50vw - 12px)); /* half of min(560px, 100vw - 24px) */
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
   #chat-form input {
     flex: 1;
     min-width: 0;
+    min-height: 44px;
+    padding: 10px 14px;
+    background: rgba(13, 20, 33, 0.38);
+    border: 1px solid rgba(147, 164, 199, 0.3);
+    border-radius: 999px;
+    box-shadow: none;
+    font-size: 0.92rem;
   }
-  #chat-form button {
+  #chat-form input::placeholder {
+    color: rgba(214, 228, 255, 0.55);
+  }
+  #chat-form input:focus {
+    border-color: rgba(53, 208, 197, 0.55);
+    box-shadow: none;
+  }
+  #chat-send {
     flex: 0 0 auto;
+    min-height: 44px;
+    min-width: 46px;
+    padding: 0 12px;
+    background: rgba(249, 115, 98, 0.45);
+    color: #fff;
+    border: 1px solid rgba(255, 170, 150, 0.4);
+    border-radius: 999px;
   }
-  #voice-panel {
-    top: 50%;
+  #chat-send:active {
+    transform: scale(0.92);
+  }
+  .chat-voice {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0 16px;
+    gap: 8px;
+    background: rgba(13, 20, 33, 0.32);
+    border: 1px solid rgba(53, 208, 197, 0.35);
+    border-radius: 999px;
+    color: #dcecff;
+    font-size: 0.88rem;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .chat-voice:hover {
+    background: rgba(64, 140, 255, 0.18);
+    border-color: rgba(53, 208, 197, 0.55);
+  }
+  .chat-voice:active {
+    transform: scale(0.96);
+  }
+  .chat-voice.on {
+    background: rgba(53, 208, 197, 0.24);
+    border-color: rgba(120, 255, 235, 0.5);
+    color: #e8fffc;
+    box-shadow: inset 0 0 18px rgba(53, 208, 197, 0.25);
+  }
+
+  /* emotes centred directly above the chat pill */
+  #emote-bar {
     left: 50%;
     right: auto;
-    transform: translate(-50%, -50%);
-    width: min(360px, calc(100vw - 24px));
-    max-height: min(88vh, 520px);
-    z-index: 25;
+    transform: translateX(-50%);
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    gap: 10px;
   }
+  #emote-bar button {
+    padding: 9px 18px 9px 13px;
+    font-size: 0.82rem;
+    color: #dcecff;
+    border: 1px solid rgba(110, 160, 230, 0.38);
+    background: linear-gradient(
+      180deg,
+      rgba(32, 62, 105, 0.4),
+      rgba(10, 22, 44, 0.4)
+    );
+    box-shadow:
+      0 0 18px rgba(64, 140, 255, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 10px 26px rgba(3, 8, 20, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  #emote-bar button:hover {
+    background: linear-gradient(
+      180deg,
+      rgba(44, 82, 135, 0.55),
+      rgba(15, 30, 58, 0.55)
+    );
+    border-color: rgba(140, 190, 250, 0.6);
+  }
+  #emote-bar button:active {
+    transform: scale(0.96);
+  }
+
   #chat-log {
     left: 14px;
-    bottom: calc(390px + env(safe-area-inset-bottom, 0px));
-    width: min(360px, calc(100vw - 28px));
-    max-height: min(20vh, 170px);
+    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    width: min(260px, 44vw);
+    max-height: min(14vh, 104px);
+    gap: 4px;
+  }
+  #chat-log .chat-line {
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    background: rgba(13, 20, 33, 0.4);
   }
 
   #joystick {
-    left: calc(16px + env(safe-area-inset-left, 0px));
+    left: calc(18px + env(safe-area-inset-left, 0px));
     bottom: calc(88px + env(safe-area-inset-bottom, 0px));
-    width: clamp(112px, 16vw, 128px);
-    height: clamp(112px, 16vw, 128px);
+    width: clamp(112px, 17vw, 150px);
+    height: clamp(112px, 17vw, 150px);
   }
   #btn-jump {
-    right: calc(20px + env(safe-area-inset-right, 0px));
-    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
-    width: clamp(64px, 9vw, 74px);
-    height: clamp(64px, 9vw, 74px);
+    right: calc(18px + env(safe-area-inset-right, 0px));
+    bottom: calc(74px + env(safe-area-inset-bottom, 0px));
   }
   #btn-use {
-    right: calc(20px + env(safe-area-inset-right, 0px));
-    bottom: calc(184px + env(safe-area-inset-bottom, 0px));
-    min-width: clamp(64px, 9vw, 74px);
+    right: calc(18px + env(safe-area-inset-right, 0px));
+    bottom: calc(190px + env(safe-area-inset-bottom, 0px));
+    min-width: 70px;
     padding: 13px 0;
-  }
-  #emote-bar {
-    left: calc(16px + env(safe-area-inset-left, 0px));
-    bottom: calc(228px + env(safe-area-inset-bottom, 0px));
-    gap: 6px;
-    transform: none;
-  }
-  #emote-bar button {
-    padding: 8px 11px;
-    font-size: 0.72rem;
   }
   #fx-bar {
     right: calc(16px + env(safe-area-inset-right, 0px));
-    bottom: calc(268px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(274px + env(safe-area-inset-bottom, 0px));
     max-width: min(66vw, 500px);
   }
   #interact-prompt {
-    bottom: calc(330px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(336px + env(safe-area-inset-bottom, 0px));
   }
 }
 
-/* Phones: keep the top action cluster in a tidy 4 + 3 grid so it no longer
-   sits on top of the player chip. */
+/* Phones: one tidy row of icon buttons, clear of the player chip. */
 @media (max-width: 640px) {
   #hud-chip {
     min-width: 0;
-    max-width: calc(100vw - 200px);
+    max-width: calc(100vw - 220px);
   }
   #hud-chip .dot {
     flex: 0 0 auto;
@@ -2101,14 +2183,19 @@ ul.list li {
     display: none;
   }
   .hud-topright {
-    width: 170px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
+    flex-wrap: nowrap;
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    right: calc(10px + env(safe-area-inset-right, 0px));
     gap: 6px;
   }
   .hud-topright .icon-btn {
     width: 38px;
     height: 38px;
+    border-radius: 12px;
+  }
+  .hud-topright .icon-btn svg {
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -2133,7 +2220,7 @@ ul.list li {
   }
   #emote-bar {
     left: 50%;
-    bottom: calc(62px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
     transform: translateX(-50%);
   }
   #interact-prompt {

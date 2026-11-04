@@ -118,23 +118,6 @@
             </svg>
           </button>
           <button
-            class="icon-btn"
-            id="btn-voice"
-            title="Voice (V)"
-            aria-label="Voice"
-            data-key="V"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <rect x="9" y="2" width="6" height="12" rx="3" />
-              <path d="M5 10a7 7 0 0 0 14 0M12 19v3M8 22h8" />
-            </svg>
-          </button>
-          <button
             class="icon-btn time-btn"
             id="btn-timeofday"
             title="Switch to day (T)"
@@ -197,24 +180,6 @@
           <ul id="friends-list"></ul>
         </div>
 
-        <div id="voice-panel" class="glass-panel" hidden>
-          <div class="voice-head">
-            <h3>Voice chat</h3>
-            <button
-              type="button"
-              class="panel-close"
-              id="voice-close"
-              aria-label="Close voice chat"
-            >
-              ×
-            </button>
-          </div>
-          <p id="voice-status" class="muted">Speaker is on.</p>
-          <button type="button" id="voice-mic-btn" class="btn">
-            Turn on microphone
-          </button>
-        </div>
-
         <div id="chat-log" aria-live="polite"></div>
 
         <form id="chat-form" autocomplete="off">
@@ -222,9 +187,9 @@
             type="button"
             id="chat-voice-btn"
             class="chat-voice"
-            title="Voice chat (V)"
-            aria-label="Voice chat"
-            aria-controls="voice-panel"
+            title="Toggle microphone (V)"
+            aria-label="Toggle microphone"
+            aria-pressed="false"
           >
             <svg
               viewBox="0 0 24 24"
@@ -239,13 +204,55 @@
             <span class="chat-voice-label">Voice</span>
           </button>
           <input id="chat-input" maxlength="200" placeholder="Say something…" />
-          <button id="chat-send">Send</button>
+          <button
+            id="chat-send"
+            type="submit"
+            aria-label="Send message"
+            title="Send message"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M22 2 11 13" />
+              <path d="M22 2 15 22l-4-9-9-4z" />
+            </svg>
+          </button>
         </form>
 
         <div id="emote-bar">
-          <button data-emote="wave" data-key="1">Wave</button>
-          <button data-emote="dance" data-key="2">Dance</button>
-          <button data-emote="greet" data-key="3">Greet</button>
+          <button
+            type="button"
+            data-emote="wave"
+            data-key="1"
+            aria-label="Wave"
+          >
+            <span class="emote-glyph" aria-hidden="true">👋</span>
+            <span>Wave</span>
+          </button>
+          <button
+            type="button"
+            data-emote="dance"
+            data-key="2"
+            aria-label="Dance"
+          >
+            <span class="emote-glyph" aria-hidden="true">🕺</span>
+            <span>Dance</span>
+          </button>
+          <button
+            type="button"
+            data-emote="greet"
+            data-key="3"
+            aria-label="Greet"
+          >
+            <span class="emote-glyph" aria-hidden="true">🤝</span>
+            <span>Greet</span>
+          </button>
         </div>
 
         <div id="fx-bar" hidden aria-label="Firecracker quick-use bar"></div>
@@ -255,7 +262,29 @@
         <div id="touch-controls" hidden>
           <div id="joystick"><div id="joy-knob"></div></div>
           <button id="btn-use" hidden>Use</button>
-          <button id="btn-jump">Jump</button>
+          <button
+            id="btn-jump"
+            aria-label="Jump"
+            title="Jump"
+            type="button"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              class="jump-glyph"
+            >
+              <circle cx="12" cy="4" r="2" fill="currentColor" stroke="none" />
+              <path
+                d="M9 9.5 6.5 5.8M15 9.5l2.5-3.7M8.6 10.6 12 8.2l3.4 2.4M12 8.2v5.3M12 13.5 7.8 18M12 13.5l4.2 4.5"
+              />
+            </svg>
+            <span>Jump</span>
+          </button>
         </div>
         <div id="cam-touch" hidden></div>
 

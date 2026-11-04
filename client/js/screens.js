@@ -47,12 +47,8 @@ export class UI {
     this._buildScreens();
     this._bindHud();
 
-    // keep the voice panel live while open; apply saved speaker volume
-    this.game.voice.on("change", () => {
-      this._syncVoiceButtons();
-      const panel = $("voice-panel");
-      if (panel && !panel.hidden) this._renderVoicePanel();
-    });
+    // keep the voice state in sync across toggles; speaker is always on
+    this.game.voice.on("change", () => this._syncVoiceButtons());
     // Speaker is always on; only the microphone is user-controlled.
     this.game.voice.setSpeakerVolume(1);
     this._syncVoiceButtons();
@@ -591,20 +587,15 @@ export class UI {
     });
 
     for (const b of document.querySelectorAll("#emote-bar button")) {
-      b.addEventListener("click", () =>
+      this._bindTap(b, () =>
         this.game.controller.playEmote(b.dataset.emote),
       );
     }
 
-    $("btn-players").onclick = () => this.togglePlayers();
-    $("btn-friends").onclick = () => this.toggleFriends();
-    $("btn-voice").onclick = () => this.toggleVoice();
-    $("chat-voice-btn").onclick = () => this.toggleVoice();
-    $("voice-close").onclick = () => {
-      $("voice-panel").hidden = true;
-      this._syncVoiceButtons();
-    };
-    $("btn-settings").onclick = () => this.show("settings");
+    this._bindTap($("btn-players"), () => this.togglePlayers());
+    this._bindTap($("btn-friends"), () => this.toggleFriends());
+    this._bindTap($("chat-voice-btn"), () => this.toggleMic());
+    this._bindTap($("btn-settings"), () => this.show("settings"));
     this._syncTimeButton = () => {
       const b = $("btn-timeofday");
       if (!b) return;
@@ -614,15 +605,15 @@ export class UI {
       b.setAttribute("aria-label", b.title);
     };
     this._syncTimeButton();
-    $("btn-timeofday").onclick = () => {
+    this._bindTap($("btn-timeofday"), () => {
       const next = this.game.timeOfDay === "day" ? "night" : "day";
       this.settings.timeOfDay = next;
       this._saveSettings();
       this.game.setTimeOfDay(next);
       this._syncTimeButton();
-    };
+    });
     const invBtn = $("btn-inventory");
-    if (invBtn) invBtn.onclick = () => this.toggleInventory();
+    if (invBtn) this._bindTap(invBtn, () => this.toggleInventory());
 
     // friend add from HUD panel
     $("friend-add-btn").onclick = () => {
@@ -642,6 +633,23 @@ export class UI {
   showPlaying(fn) {
     if (this.game.playing) fn();
   }
+  // HUD buttons fire on a single tap. Mobile Safari/Chrome sometimes swallow
+  // the synthetic click after a touch lands on overlapping layers (#cam-touch),
+  // so each button gets an explicit touchend that runs the action directly; the
+  // 350 ms timestamp guard dedupes the click the browser may forge afterwards.
+  _bindTap(el, fn) {
+    if (!el) return;
+    let lastFire = 0;
+    const fire = (e) => {
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastFire < 350) return;
+      lastFire = now;
+      fn();
+    };
+    el.addEventListener("touchend", fire, { passive: false });
+    el.addEventListener("click", fire);
+  }
   togglePlayers() {
     this.showPlaying(() => {
       this._renderPlayers();
@@ -656,17 +664,40 @@ export class UI {
       closePanels("friends-panel");
     });
   }
-  toggleVoice() {
+  // One tap toggles the microphone — no panels, no two-step flow.
+  toggleMic() {
     this.showPlaying(() => {
-      this._renderVoicePanel();
-      togglePanel("voice-panel");
-      closePanels("voice-panel");
-      this._syncVoiceButtons();
+      void this._toggleMicNow();
     });
   }
+  async _toggleMicNow() {
+    if (this._micBusy) return;
+    const v = this.game.voice;
+    if (!v) return;
+    this._micBusy = true;
+    try {
+      if (v.enabled) {
+        v.disableMic();
+        this.toast("Microphone off");
+      } else {
+        const ok = await v.enableMic();
+        if (ok) {
+          this.toast("Mic on — nearby players can hear you");
+        } else if (v.status === "insecure") {
+          this.toast("Mic needs https:// or http://localhost");
+        } else if (v.status === "denied") {
+          this.toast("Microphone blocked — allow mic access in the browser");
+        } else {
+          this.toast("Microphone unavailable");
+        }
+      }
+    } finally {
+      this._micBusy = false;
+      this._syncVoiceButtons();
+    }
+  }
   closePanels() {
-    for (const k of ["players-panel", "friends-panel", "voice-panel"])
-      $(k).hidden = true;
+    for (const k of ["players-panel", "friends-panel"]) $(k).hidden = true;
   }
 
   // ---- fullscreen (Fullscreen API, with webkit fallback for older Safari) --
@@ -1139,50 +1170,18 @@ export class UI {
   _syncVoiceButtons() {
     const v = this.game.voice;
     const micOn = !!v.enabled;
-    const panelOpen = !$("voice-panel")?.hidden;
-    for (const id of ["btn-voice", "chat-voice-btn"]) {
-      const b = $(id);
-      if (!b) continue;
+    const b = $("chat-voice-btn");
+    if (b) {
       b.classList.toggle("on", micOn);
       b.setAttribute("aria-pressed", micOn ? "true" : "false");
-      b.setAttribute("aria-expanded", panelOpen ? "true" : "false");
+      b.title = micOn ? "Microphone on (V)" : "Toggle microphone (V)";
+      b.setAttribute(
+        "aria-label",
+        micOn ? "Microphone on" : "Turn on microphone",
+      );
     }
     const label = document.querySelector(".chat-voice-label");
     if (label) label.textContent = micOn ? "Mic on" : "Voice";
-  }
-
-  _renderVoicePanel() {
-    const v = this.game.voice;
-    const micBtn = $("voice-mic-btn");
-
-    micBtn.textContent = v.enabled
-      ? "Turn off microphone"
-      : "Turn on microphone";
-    micBtn.classList.toggle("ghost", v.enabled);
-
-    const peers = [...v.peers.values()];
-    const connected = peers.filter(
-      (p) => p.pc.connectionState === "connected",
-    ).length;
-    let text;
-    if (v.status === "insecure") {
-      text =
-        "Voice needs https:// or http://localhost — plain LAN http blocks the mic.";
-    } else {
-      text = `Speaker on · Mic ${v.enabled ? "on" : "off"}`;
-      if (v.listening && peers.length) {
-        text += ` · ${connected}/${peers.length} nearby`;
-      }
-      if (v.status === "denied" && v.lastError) text += ` — ${v.lastError}`;
-    }
-    $("voice-status").textContent = text;
-
-    micBtn.onclick = async () => {
-      if (!v.enabled) await v.enableMic();
-      else v.disableMic();
-      this._renderVoicePanel();
-    };
-    this._syncVoiceButtons();
   }
 
   _renderFriendsScreen() {
@@ -1404,13 +1403,12 @@ export class UI {
 function togglePanel(id) {
   const node = $(id);
   const was = !node.hidden;
-  for (const k of ["players-panel", "friends-panel", "voice-panel"])
-    $(k).hidden = true;
+  for (const k of ["players-panel", "friends-panel"]) $(k).hidden = true;
   node.hidden = was;
   document.dispatchEvent(new CustomEvent("dm:panels"));
 }
 function closePanels(except) {
-  for (const k of ["players-panel", "friends-panel", "voice-panel"]) {
+  for (const k of ["players-panel", "friends-panel"]) {
     if (k !== except) $(k).hidden = true;
   }
   document.dispatchEvent(new CustomEvent("dm:panels"));
