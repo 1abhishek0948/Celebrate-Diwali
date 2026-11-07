@@ -1006,6 +1006,10 @@ class Game {
     const rp = this.remotePlayers.get(id);
     if (!rp) return;
     this.scene.remove(rp.rig.root);
+    // CSS2D name tags are DOM nodes owned by the rig: removing the 3D root from
+    // the scene does NOT remove its label, so dispose the rig explicitly or the
+    // name stays stuck on screen after the player leaves / enters a house.
+    rp.rig.dispose();
     this.voice.hangup(id);
     this.world.festival?.detachSparkler?.(id);
     this.remotePlayers.delete(id);
