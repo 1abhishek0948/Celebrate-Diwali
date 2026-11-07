@@ -3152,6 +3152,7 @@ export class Festival {
     const rng = seed != null ? mulberry32(seed) : this.rand;
     if (kind === "rocket") this._launchRocketAt(x, z, rng, ry, self);
     else if (kind === "aerial") this._aerialAt(x, z, rng, ry, self);
+    else if (kind === "diya") this._groundProp("diya", x, z, ry || 0);
     else if (kind === "spinner") this._groundProp("chakri", x, z, ry || 0);
     else this._groundProp("anar", x, z, ry || 0);
   }
@@ -3176,7 +3177,30 @@ export class Festival {
       spin: this._rr(9, 15),
       phase: this.rand() * 6.28,
     };
-    if (type === "anar") {
+    if (type === "diya") {
+      // placed diya: clay bowl + flickering flame (flame shader shares the
+      // world-diya uTime uniforms, so it breathes exactly like the rest)
+      if (!this._pfxDiyaBowlGeo) {
+        this._pfxDiyaBowlGeo = new THREE.CylinderGeometry(0.15, 0.1, 0.12, 8);
+        this._pfxDiyaFlameGeo = new THREE.ConeGeometry(0.055, 0.2, 6);
+      }
+      const bowl = new THREE.Mesh(this._pfxDiyaBowlGeo, this._pfxClay);
+      bowl.position.y = 0.06;
+      g.add(bowl);
+      const flame = new THREE.Mesh(
+        this._pfxDiyaFlameGeo,
+        this._diyaFlameMaterial(),
+      );
+      flame.position.y = 0.27;
+      flame.material.__pfx = true; // disposed with the prop
+      g.add(flame);
+      const halo = new THREE.Mesh(this._pfxBudGeo, glow);
+      halo.position.y = 0.3;
+      g.add(halo);
+      c.flame = flame;
+      c.rate = 0;
+      c.dur = 45; // stays lit for the whole evening visit
+    } else if (type === "anar") {
       const cone = new THREE.Mesh(this._pfxAnarGeo, this._pfxClay);
       cone.position.y = 0.28;
       g.add(cone);
@@ -3330,7 +3354,16 @@ export class Festival {
       }
       const active = c.t < c.dur;
       const ramp = active ? Math.min(1, (c.dur - c.t) / 0.5) : 0;
-      if (c.type === "anar") {
+      if (c.type === "diya") {
+        // no sparks — just a soft breathing halo while the flame shader flickers
+        if (active) {
+          c.glow.opacity = (0.4 + 0.18 * Math.sin(this.time * 9 + c.phase)) * ramp;
+          if (this.rand() < dt * 0.5)
+            this._puff(c.x, 0.5, c.z, 0.3, this._rr(0.7, 1.1), 0.5);
+        } else {
+          c.glow.opacity = Math.max(0, c.glow.opacity - dt * 1.2);
+        }
+      } else if (c.type === "anar") {
         if (active) {
           // the burning clay vent breathes: scale its glowing tip mesh
           if (c.tip)

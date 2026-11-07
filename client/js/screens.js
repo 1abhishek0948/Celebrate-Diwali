@@ -25,6 +25,7 @@ const el = (tag, cls, text) => {
 // distinct, resolution-free icons for the catalog (emoji render everywhere the
 // game already runs — no image downloads, matching the asset-free design)
 const FX_EMOJI = {
+  diya: "🪔",
   anar: "🎇",
   chakri: "🌀",
   phuljhadi: "✨",
@@ -1394,7 +1395,7 @@ export class UI {
 
   connectedUi(state) {
     const dot = $("hud-dot");
-    dot.style.background = state === "open" ? "#35d0c5" : "#e5484d";
+    dot.style.background = state === "open" ? "#ffb02e" : "#e5484d";
     dot.style.boxShadow = `0 0 8px ${dot.style.background}`;
   }
 }

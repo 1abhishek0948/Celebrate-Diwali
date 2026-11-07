@@ -188,9 +188,21 @@ export const CURRENCY = {
   note: "A free in-game currency. Earned by exploring, spent at the festival shops — never real money.",
 };
 
-// kind: ground | spinner | handheld | rocket | aerial | pack
+// kind: ground | spinner | handheld | rocket | aerial | diya | pack
 //   packs are purchase-only bundles that grant the `gives` contents on purchase
 export const FIREWORKS = [
+  {
+    id: "diya",
+    name: "Diya",
+    alt: "दिया",
+    kind: "diya",
+    price: 20,
+    maxStack: 99,
+    icon: "diya",
+    duration: 45,
+    tagline: "Lit clay lamp",
+    desc: "Place a glowing clay diya that lights the path all evening.",
+  },
   {
     id: "anar",
     name: "Anar",
@@ -258,6 +270,30 @@ export const FIREWORKS = [
     tagline: "Four handheld sparklers",
     desc: "A family pack of four phuljhadi sparklers.",
     gives: { phuljhadi: 4 },
+  },
+  {
+    id: "diya-set",
+    name: "Diya Set",
+    alt: "दीपों की माला",
+    kind: "pack",
+    price: 80,
+    maxStack: 99,
+    icon: "pack",
+    tagline: "Five clay diyas",
+    desc: "A set of five lit diyas — line your doorstep with light.",
+    gives: { diya: 5 },
+  },
+  {
+    id: "crackers-pack",
+    name: "Firecrackers Pack",
+    alt: "आतिशबाज़ी पैक",
+    kind: "pack",
+    price: 180,
+    maxStack: 99,
+    icon: "pack",
+    tagline: "Classic crackers bundle",
+    desc: "Two anars, two chakris and a rocket — the classic firecracker line-up.",
+    gives: { anar: 2, chakri: 2, rocket: 1 },
   },
   {
     id: "combo",

@@ -1,19 +1,19 @@
 /* ===========================================================================
    Diwali Meet Up design system
-   Palette generations: deep slate base + coral accent + cyan highlight.
+   Palette: deep plum night base + marigold-gold accent + rani-pink highlight.
    =========================================================================== */
 :root {
-  --bg: #0d1421;
-  --bg-soft: #131c2e;
-  --card: rgba(19, 28, 46, 0.82);
-  --card-solid: #16203a;
-  --ink: #eaf0ff;
-  --ink-dim: #93a4c7;
-  --accent: #f97362;
-  --accent-2: #35d0c5;
-  --line: rgba(147, 164, 199, 0.22);
+  --bg: #170b28;
+  --bg-soft: #20103a;
+  --card: rgba(37, 19, 60, 0.82);
+  --card-solid: #2a1546;
+  --ink: #fff3e2;
+  --ink-dim: #cbaadf;
+  --accent: #ffb02e;
+  --accent-2: #ff6fae;
+  --line: rgba(214, 176, 247, 0.22);
   --radius: 18px;
-  --shadow: 0 18px 48px rgba(3, 8, 20, 0.45);
+  --shadow: 0 18px 48px rgba(10, 4, 22, 0.45);
   font-size: 16px;
 }
 
@@ -76,8 +76,13 @@ body {
   overscroll-behavior: contain;
   padding: 24px;
   background:
-    radial-gradient(1200px 700px at 50% -10%, #1c2b4d 0%, var(--bg) 55%),
-    linear-gradient(180deg, #0d1421 0%, #101a2e 100%);
+    radial-gradient(1200px 700px at 50% -10%, #3a1d60 0%, var(--bg) 55%),
+    radial-gradient(
+      900px 520px at 85% 112%,
+      rgba(255, 176, 46, 0.08) 0%,
+      transparent 60%
+    ),
+    linear-gradient(180deg, #170b28 0%, #20103a 100%);
   opacity: 0;
   transform: scale(0.98);
   visibility: hidden;
@@ -95,7 +100,7 @@ body {
   pointer-events: auto;
 }
 .screen.in-game-dim {
-  background: rgba(8, 13, 24, 0.55);
+  background: rgba(16, 7, 30, 0.55);
   backdrop-filter: blur(6px);
 }
 
@@ -166,14 +171,14 @@ input:not([type]) {
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: rgba(10, 16, 30, 0.6);
+  background: rgba(18, 9, 34, 0.6);
   color: var(--ink);
   font-size: 1rem;
   outline: none;
 }
 input:focus {
   border-color: var(--accent-2);
-  box-shadow: 0 0 0 3px rgba(53, 208, 197, 0.18);
+  box-shadow: 0 0 0 3px rgba(255, 111, 174, 0.18);
 }
 
 .btn {
@@ -189,8 +194,8 @@ input:focus {
   font-weight: 700;
   cursor: pointer;
   color: #fff;
-  background: linear-gradient(135deg, var(--accent) 0%, #fb9a62 100%);
-  box-shadow: 0 10px 24px rgba(249, 115, 98, 0.35);
+  background: linear-gradient(135deg, var(--accent) 0%, #ff8a3d 100%);
+  box-shadow: 0 10px 24px rgba(255, 149, 61, 0.35);
   transition:
     transform 0.12s ease,
     filter 0.12s ease;
@@ -248,7 +253,7 @@ input:focus {
   padding: 0;
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.16),
-    0 2px 5px rgba(3, 8, 20, 0.45);
+    0 2px 5px rgba(10, 4, 22, 0.45);
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease;
@@ -260,7 +265,7 @@ input:focus {
   box-shadow:
     0 0 0 2.5px var(--card-solid),
     0 0 0 5px var(--accent-2),
-    0 4px 14px rgba(53, 208, 197, 0.35);
+    0 4px 14px rgba(255, 111, 174, 0.35);
 }
 .swatch.selected::after {
   content: "";
@@ -269,8 +274,8 @@ input:focus {
   top: 50%;
   width: 32%;
   height: 18%;
-  border-left: 2.5px solid #10151f;
-  border-bottom: 2.5px solid #10151f;
+  border-left: 2.5px solid #2a1546;
+  border-bottom: 2.5px solid #2a1546;
   transform: translate(-50%, -62%) rotate(-45deg);
   filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.9));
 }
@@ -282,7 +287,7 @@ input:focus {
   gap: 4px;
   padding: 5px;
   width: 100%;
-  background: rgba(8, 13, 25, 0.55);
+  background: rgba(20, 10, 36, 0.55);
   border: 1px solid var(--line);
   border-radius: 999px;
 }
@@ -307,9 +312,9 @@ input:focus {
   color: var(--ink);
 }
 .pill.selected {
-  background: linear-gradient(135deg, var(--accent) 0%, #fb9a62 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, #ff8a3d 100%);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(249, 115, 98, 0.35);
+  box-shadow: 0 4px 12px rgba(255, 149, 61, 0.35);
 }
 
 .stats {
@@ -360,7 +365,7 @@ input:focus {
   font-weight: 800;
   letter-spacing: -0.4px;
   font-size: clamp(1.3rem, 2.4vw, 1.65rem);
-  background: linear-gradient(90deg, #ffffff 20%, #c4d3f6 90%);
+  background: linear-gradient(90deg, #ffffff 20%, #ffd9b0 90%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -404,13 +409,13 @@ input:focus {
   flex-direction: column;
   gap: 18px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(147, 164, 199, 0.3) transparent;
+  scrollbar-color: rgba(214, 176, 247, 0.3) transparent;
 }
 .cc-form::-webkit-scrollbar {
   width: 8px;
 }
 .cc-form::-webkit-scrollbar-thumb {
-  background: rgba(147, 164, 199, 0.22);
+  background: rgba(214, 176, 247, 0.22);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
@@ -439,7 +444,7 @@ input:focus {
   border-radius: 2px;
   flex: none;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  box-shadow: 0 0 6px rgba(249, 115, 98, 0.45);
+  box-shadow: 0 0 6px rgba(255, 149, 61, 0.45);
 }
 .cc-form input {
   padding: 13px 16px;
@@ -454,8 +459,8 @@ input:focus {
   border-top: 1px solid var(--line);
   background: linear-gradient(
     180deg,
-    rgba(10, 16, 30, 0.3),
-    rgba(10, 16, 30, 0.62)
+    rgba(18, 9, 34, 0.3),
+    rgba(18, 9, 34, 0.62)
   );
 }
 .cc-foot .btn {
@@ -479,19 +484,19 @@ input:focus {
   background:
     radial-gradient(
       90% 70% at 50% 10%,
-      rgba(53, 208, 197, 0.14) 0%,
+      rgba(255, 111, 174, 0.14) 0%,
       transparent 55%
     ),
     radial-gradient(
       130% 90% at 50% 115%,
-      rgba(72, 116, 190, 0.4) 0%,
+      rgba(255, 140, 96, 0.4) 0%,
       transparent 62%
     ),
-    linear-gradient(180deg, #22345c 0%, #182a4a 55%, #12203a 100%);
-  border: 1px solid rgba(147, 164, 199, 0.26);
+    linear-gradient(180deg, #3d205e 0%, #2c1548 55%, #1e0e34 100%);
+  border: 1px solid rgba(214, 176, 247, 0.26);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 -60px 70px rgba(3, 8, 20, 0.32);
+    inset 0 -60px 70px rgba(10, 4, 22, 0.32);
   cursor: grab;
   touch-action: none; /* pointer drags rotate the buddy instead of scrolling */
 }
@@ -508,7 +513,7 @@ input:focus {
   transform: translateX(-50%);
   background: radial-gradient(
     50% 50% at 50% 50%,
-    rgba(53, 208, 197, 0.26) 0%,
+    rgba(255, 176, 46, 0.3) 0%,
     transparent 72%
   );
   pointer-events: none;
@@ -523,7 +528,7 @@ input:focus {
   transform: translateX(-50%);
   background: radial-gradient(
     50% 50% at 50% 50%,
-    rgba(3, 8, 20, 0.45) 0%,
+    rgba(10, 4, 22, 0.45) 0%,
     transparent 100%
   );
   pointer-events: none;
@@ -542,7 +547,7 @@ input:focus {
   font-size: 0.68rem;
   color: var(--ink-dim);
   white-space: nowrap;
-  background: rgba(8, 13, 25, 0.55);
+  background: rgba(20, 10, 36, 0.55);
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 4px 12px;
@@ -645,13 +650,13 @@ input:focus {
 /* scrollbars inside panels */
 .panel {
   scrollbar-width: thin;
-  scrollbar-color: rgba(147, 164, 199, 0.3) transparent;
+  scrollbar-color: rgba(214, 176, 247, 0.3) transparent;
 }
 .panel::-webkit-scrollbar {
   width: 10px;
 }
 .panel::-webkit-scrollbar-thumb {
-  background: rgba(147, 164, 199, 0.25);
+  background: rgba(214, 176, 247, 0.25);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: content-box;
@@ -694,7 +699,7 @@ ul.list li {
   font-size: 0.68rem;
   padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(53, 208, 197, 0.15);
+  background: rgba(255, 111, 174, 0.15);
   color: var(--accent-2);
   letter-spacing: 0.03em;
 }
@@ -737,10 +742,10 @@ ul.list li {
   z-index: 2;
   display: flex;
   gap: 7px;
-  color: rgba(234, 240, 255, 0.72);
+  color: rgba(255, 240, 219, 0.72);
   font-size: 0.72rem;
   pointer-events: none;
-  text-shadow: 0 1px 5px rgba(3, 8, 20, 0.85);
+  text-shadow: 0 1px 5px rgba(10, 4, 22, 0.85);
   transform: translateX(-50%);
   white-space: nowrap;
 }
@@ -752,8 +757,8 @@ ul.list li {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(19, 28, 46, 0.42);
-  border: 1px solid rgba(147, 164, 199, 0.28);
+  background: rgba(37, 19, 60, 0.42);
+  border: 1px solid rgba(214, 176, 247, 0.28);
   border-radius: 999px;
   padding: 8px 16px 8px 10px;
   backdrop-filter: blur(8px);
@@ -829,13 +834,13 @@ ul.list li {
   width: 1px;
   height: 6px;
   border-radius: 1px;
-  background: rgba(147, 164, 199, 0.42);
-  box-shadow: 0 0 2px rgba(3, 8, 20, 0.8);
+  background: rgba(214, 176, 247, 0.42);
+  box-shadow: 0 0 2px rgba(10, 4, 22, 0.8);
   transform: translateX(-0.5px);
 }
 .compass-tick.major {
   height: 10px;
-  background: rgba(234, 240, 255, 0.58);
+  background: rgba(255, 240, 219, 0.58);
 }
 .compass-tick.cardinal {
   height: 13px;
@@ -844,12 +849,12 @@ ul.list li {
 .compass-label {
   position: absolute;
   top: 9px;
-  color: rgba(147, 164, 199, 0.88);
+  color: rgba(214, 176, 247, 0.88);
   font-size: 0.62rem;
   font-weight: 600;
   line-height: 1;
   letter-spacing: 0.12em;
-  text-shadow: 0 1px 4px rgba(3, 8, 20, 0.9);
+  text-shadow: 0 1px 4px rgba(10, 4, 22, 0.9);
   transform: translateX(-50%);
 }
 .compass-label.cardinal {
@@ -869,7 +874,7 @@ ul.list li {
   background: linear-gradient(
     180deg,
     var(--accent-2) 0%,
-    rgba(53, 208, 197, 0.2) 72%,
+    rgba(255, 111, 174, 0.2) 72%,
     transparent 100%
   );
   opacity: 0.85;
@@ -883,7 +888,7 @@ ul.list li {
   border-top: 6px solid var(--accent-2);
   border-right: 4px solid transparent;
   border-left: 4px solid transparent;
-  filter: drop-shadow(0 0 4px rgba(53, 208, 197, 0.65));
+  filter: drop-shadow(0 0 4px rgba(255, 111, 174, 0.65));
   transform: translateX(-50%);
 }
 .compass-readout {
@@ -893,7 +898,7 @@ ul.list li {
   font-size: 0.62rem;
   line-height: 1;
   letter-spacing: 0.13em;
-  text-shadow: 0 1px 4px rgba(3, 8, 20, 0.9);
+  text-shadow: 0 1px 4px rgba(10, 4, 22, 0.9);
 }
 #compass-cardinal {
   color: var(--accent-2);
@@ -913,8 +918,8 @@ ul.list li {
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  border: 1px solid rgba(147, 164, 199, 0.28);
-  background: rgba(19, 28, 46, 0.32);
+  border: 1px solid rgba(214, 176, 247, 0.28);
+  background: rgba(37, 19, 60, 0.32);
   color: var(--ink);
   backdrop-filter: blur(8px);
   display: grid;
@@ -933,11 +938,11 @@ ul.list li {
   line-height: 1;
 }
 .icon-btn:hover {
-  background: rgba(19, 28, 46, 0.5);
+  background: rgba(37, 19, 60, 0.5);
   transform: translateY(-1px);
 }
 .icon-btn.on {
-  background: rgba(249, 115, 98, 0.5);
+  background: rgba(255, 149, 61, 0.5);
   border-color: rgba(255, 180, 160, 0.6);
 }
 
@@ -957,7 +962,7 @@ ul.list li {
   font-weight: 800;
   line-height: 1.25;
   color: var(--ink-dim);
-  background: rgba(13, 20, 33, 0.85);
+  background: rgba(24, 11, 40, 0.85);
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: 0 3px;
@@ -1010,8 +1015,8 @@ ul.list li {
   mask-image: linear-gradient(to bottom, transparent 0, #000 14%);
 }
 .chat-line {
-  background: rgba(13, 20, 33, 0.5);
-  border: 1px solid rgba(147, 164, 199, 0.24);
+  background: rgba(24, 11, 40, 0.5);
+  border: 1px solid rgba(214, 176, 247, 0.24);
   padding: 5px 11px;
   border-radius: 11px;
   font-size: 0.78rem;
@@ -1026,11 +1031,11 @@ ul.list li {
   color: var(--accent-2);
 }
 .chat-line.pm {
-  border-color: rgba(249, 115, 98, 0.5);
+  border-color: rgba(255, 149, 61, 0.5);
 }
 .chat-line.sys {
   color: var(--ink-dim);
-  background: rgba(13, 20, 33, 0.4);
+  background: rgba(24, 11, 40, 0.4);
 }
 @keyframes chatIn {
   from {
@@ -1053,8 +1058,8 @@ ul.list li {
   flex: 1 1 auto;
   min-width: 0;
   width: auto;
-  background: rgba(13, 20, 33, 0.38);
-  border: 1px solid rgba(147, 164, 199, 0.25);
+  background: rgba(24, 11, 40, 0.38);
+  border: 1px solid rgba(214, 176, 247, 0.25);
   border-radius: 999px;
   padding: 9px 16px;
   color: var(--ink);
@@ -1071,7 +1076,7 @@ ul.list li {
   min-width: 44px;
   font-weight: 700;
   cursor: pointer;
-  background: rgba(249, 115, 98, 0.45);
+  background: rgba(255, 149, 61, 0.45);
   color: white;
   display: inline-flex;
   align-items: center;
@@ -1088,9 +1093,9 @@ ul.list li {
   gap: 6px;
   min-height: 38px;
   padding: 0 12px;
-  border: 1px solid rgba(53, 208, 197, 0.35);
+  border: 1px solid rgba(255, 111, 174, 0.35);
   border-radius: 999px;
-  background: rgba(13, 20, 33, 0.32);
+  background: rgba(24, 11, 40, 0.32);
   color: var(--ink);
   font: inherit;
   font-size: 0.82rem;
@@ -1109,19 +1114,19 @@ ul.list li {
 }
 .chat-voice:hover {
   border-color: var(--accent-2);
-  background: rgba(53, 208, 197, 0.16);
+  background: rgba(255, 111, 174, 0.16);
 }
 .chat-voice:active {
   transform: scale(0.98);
 }
 .chat-voice.on {
   border-color: var(--accent-2);
-  background: rgba(53, 208, 197, 0.26);
-  color: #e8fffc;
-  box-shadow: 0 0 16px rgba(53, 208, 197, 0.28);
+  background: rgba(255, 111, 174, 0.26);
+  color: #ffeef7;
+  box-shadow: 0 0 16px rgba(255, 111, 174, 0.28);
 }
 .chat-voice.on svg {
-  filter: drop-shadow(0 0 4px rgba(53, 208, 197, 0.7));
+  filter: drop-shadow(0 0 4px rgba(255, 111, 174, 0.7));
 }
 
 #emote-bar {
@@ -1137,8 +1142,8 @@ ul.list li {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgba(147, 164, 199, 0.28);
-  background: rgba(13, 20, 33, 0.32);
+  border: 1px solid rgba(214, 176, 247, 0.28);
+  background: rgba(24, 11, 40, 0.32);
   color: var(--ink);
   padding: 9px 18px 9px 12px;
   border-radius: 999px;
@@ -1149,8 +1154,8 @@ ul.list li {
   backdrop-filter: blur(6px);
 }
 #emote-bar button:hover {
-  background: rgba(13, 20, 33, 0.5);
-  border-color: rgba(147, 164, 199, 0.45);
+  background: rgba(24, 11, 40, 0.5);
+  border-color: rgba(214, 176, 247, 0.45);
 }
 .emote-glyph {
   font-size: 1.15rem;
@@ -1163,8 +1168,8 @@ ul.list li {
   bottom: 130px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(13, 20, 33, 0.5);
-  border: 1px solid rgba(147, 164, 199, 0.28);
+  background: rgba(24, 11, 40, 0.5);
+  border: 1px solid rgba(214, 176, 247, 0.28);
   border-radius: 12px;
   padding: 7px 12px;
   font-size: 0.82rem;
@@ -1196,8 +1201,8 @@ ul.list li {
   pointer-events: auto;
 }
 .toast {
-  background: rgba(19, 28, 46, 0.5);
-  border: 1px solid rgba(147, 164, 199, 0.28);
+  background: rgba(37, 19, 60, 0.5);
+  border: 1px solid rgba(214, 176, 247, 0.28);
   border-radius: 999px;
   padding: 7px 15px;
   font-size: 0.78rem;
@@ -1237,7 +1242,7 @@ ul.list li {
   width: 128px;
   height: 128px;
   border-radius: 50%;
-  background: rgba(13, 20, 33, 0.5);
+  background: rgba(24, 11, 40, 0.5);
   border: 1.5px solid var(--line);
   backdrop-filter: blur(4px);
 }
@@ -1301,9 +1306,9 @@ ul.list li {
   min-width: 74px;
   padding: 14px 0;
   border-radius: 999px;
-  border: 1px solid rgba(53, 208, 197, 0.35);
-  background: rgba(53, 208, 197, 0.45);
-  color: #06282a;
+  border: 1px solid rgba(255, 111, 174, 0.35);
+  background: rgba(255, 111, 174, 0.45);
+  color: #3d0a22;
   font-weight: 800;
   font-size: 0.85rem;
   backdrop-filter: blur(4px);
@@ -1375,7 +1380,7 @@ ul.list li {
   display: flex;
   align-items: center;
   gap: 7px;
-  background: rgba(19, 28, 46, 0.42);
+  background: rgba(37, 19, 60, 0.42);
   border: 1px solid rgba(255, 196, 90, 0.3);
   border-radius: 999px;
   padding: 6px 14px 6px 10px;
@@ -1410,8 +1415,8 @@ ul.list li {
   gap: 7px;
   padding: 6px;
   border-radius: 16px;
-  background: rgba(13, 20, 33, 0.38);
-  border: 1px solid rgba(147, 164, 199, 0.24);
+  background: rgba(24, 11, 40, 0.38);
+  border: 1px solid rgba(214, 176, 247, 0.24);
   backdrop-filter: blur(8px);
   box-shadow: var(--shadow);
 }
@@ -1444,12 +1449,12 @@ ul.list li {
   border-color: var(--accent-2);
   background: linear-gradient(
     180deg,
-    rgba(53, 208, 197, 0.22),
-    rgba(53, 208, 197, 0.08)
+    rgba(255, 111, 174, 0.22),
+    rgba(255, 111, 174, 0.08)
   );
   box-shadow:
-    0 0 0 2px rgba(53, 208, 197, 0.35),
-    0 0 16px rgba(53, 208, 197, 0.25);
+    0 0 0 2px rgba(255, 111, 174, 0.35),
+    0 0 16px rgba(255, 111, 174, 0.25);
 }
 .fx-slot .fx-emoji {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
@@ -1475,7 +1480,7 @@ ul.list li {
   padding: 1px 5px;
   border-radius: 6px;
   background: var(--accent-2);
-  color: #06231f;
+  color: #3d0a22;
   font-size: 0.58rem;
   font-weight: 900;
 }
@@ -1554,7 +1559,7 @@ ul.list li {
     transform 0.12s ease;
 }
 .product-card:hover {
-  border-color: rgba(249, 115, 98, 0.55);
+  border-color: rgba(255, 149, 61, 0.55);
   transform: translateY(-1px);
 }
 .pc-icon {
@@ -1622,7 +1627,7 @@ ul.list li {
 .qty-pills {
   display: flex;
   gap: 3px;
-  background: rgba(10, 16, 30, 0.5);
+  background: rgba(18, 9, 34, 0.5);
   padding: 3px;
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -1642,7 +1647,7 @@ ul.list li {
 }
 .qty-pill.selected {
   background: var(--accent-2);
-  color: #06231f;
+  color: #3d0a22;
 }
 .buy-btn {
   width: auto;
@@ -1697,10 +1702,10 @@ ul.list li {
   border-color: var(--accent-2);
   background: linear-gradient(
     90deg,
-    rgba(53, 208, 197, 0.16),
+    rgba(255, 111, 174, 0.16),
     rgba(255, 255, 255, 0.03)
   );
-  box-shadow: inset 0 0 0 1px rgba(53, 208, 197, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(255, 111, 174, 0.25);
 }
 .inv-emoji {
   font-size: 1.5rem;
@@ -1738,11 +1743,11 @@ ul.list li {
 }
 .inv-actions .mini.on {
   background: var(--accent-2);
-  color: #06231f;
+  color: #3d0a22;
   border-color: transparent;
 }
 .inv-actions .mini.accent {
-  background: linear-gradient(135deg, var(--accent), #fb9a62);
+  background: linear-gradient(135deg, var(--accent), #ff8a3d);
   border: 0;
   color: #fff;
 }
@@ -1768,12 +1773,12 @@ ul.list li {
   border-radius: 14px;
   background: linear-gradient(
     135deg,
-    rgba(249, 115, 98, 0.95),
+    rgba(255, 149, 61, 0.95),
     rgba(255, 168, 70, 0.95)
   );
   color: #2a1000;
   font-weight: 700;
-  box-shadow: 0 12px 32px rgba(249, 115, 98, 0.4);
+  box-shadow: 0 12px 32px rgba(255, 149, 61, 0.4);
   animation: celebrateIn 1.9s ease forwards;
 }
 .fx-celebrate-icon {
@@ -1829,7 +1834,7 @@ ul.list li {
   gap: 7px;
   padding: 8px 16px;
   border-radius: 999px;
-  background: rgba(13, 20, 33, 0.85);
+  background: rgba(24, 11, 40, 0.85);
   border: 1px solid rgba(255, 200, 120, 0.4);
   color: #ffd9a0;
   font-size: 0.8rem;
@@ -1968,25 +1973,25 @@ ul.list li {
     backdrop-filter: none;
   }
   .icon-btn {
-    background: rgba(19, 28, 46, 0.52);
+    background: rgba(37, 19, 60, 0.52);
   }
   .icon-btn.on {
-    background: rgba(249, 115, 98, 0.72);
+    background: rgba(255, 149, 61, 0.72);
   }
   #emote-bar button {
-    background: rgba(13, 20, 33, 0.56);
+    background: rgba(24, 11, 40, 0.56);
   }
   #chat-form input {
-    background: rgba(13, 20, 33, 0.52);
+    background: rgba(24, 11, 40, 0.52);
   }
   #joystick {
-    background: rgba(13, 20, 33, 0.34);
+    background: rgba(24, 11, 40, 0.34);
   }
   #btn-use {
-    background: rgba(53, 208, 197, 0.66);
+    background: rgba(255, 111, 174, 0.66);
   }
   #fx-bar {
-    background: rgba(13, 20, 33, 0.4);
+    background: rgba(24, 11, 40, 0.4);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -2035,17 +2040,17 @@ ul.list li {
     min-width: 0;
     min-height: 44px;
     padding: 10px 14px;
-    background: rgba(13, 20, 33, 0.38);
-    border: 1px solid rgba(147, 164, 199, 0.3);
+    background: rgba(24, 11, 40, 0.38);
+    border: 1px solid rgba(214, 176, 247, 0.3);
     border-radius: 999px;
     box-shadow: none;
     font-size: 0.92rem;
   }
   #chat-form input::placeholder {
-    color: rgba(214, 228, 255, 0.55);
+    color: rgba(255, 226, 200, 0.55);
   }
   #chat-form input:focus {
-    border-color: rgba(53, 208, 197, 0.55);
+    border-color: rgba(255, 111, 174, 0.55);
     box-shadow: none;
   }
   #chat-send {
@@ -2053,7 +2058,7 @@ ul.list li {
     min-height: 44px;
     min-width: 46px;
     padding: 0 12px;
-    background: rgba(249, 115, 98, 0.45);
+    background: rgba(255, 149, 61, 0.45);
     color: #fff;
     border: 1px solid rgba(255, 170, 150, 0.4);
     border-radius: 999px;
@@ -2066,26 +2071,26 @@ ul.list li {
     min-height: 44px;
     padding: 0 16px;
     gap: 8px;
-    background: rgba(13, 20, 33, 0.32);
-    border: 1px solid rgba(53, 208, 197, 0.35);
+    background: rgba(24, 11, 40, 0.32);
+    border: 1px solid rgba(255, 111, 174, 0.35);
     border-radius: 999px;
-    color: #dcecff;
+    color: #ffe8d6;
     font-size: 0.88rem;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
   .chat-voice:hover {
-    background: rgba(64, 140, 255, 0.18);
-    border-color: rgba(53, 208, 197, 0.55);
+    background: rgba(255, 130, 200, 0.18);
+    border-color: rgba(255, 111, 174, 0.55);
   }
   .chat-voice:active {
     transform: scale(0.96);
   }
   .chat-voice.on {
-    background: rgba(53, 208, 197, 0.24);
-    border-color: rgba(120, 255, 235, 0.5);
-    color: #e8fffc;
-    box-shadow: inset 0 0 18px rgba(53, 208, 197, 0.25);
+    background: rgba(255, 111, 174, 0.24);
+    border-color: rgba(255, 140, 195, 0.5);
+    color: #ffeef7;
+    box-shadow: inset 0 0 18px rgba(255, 111, 174, 0.25);
   }
 
   /* emotes centred directly above the chat pill */
@@ -2099,27 +2104,27 @@ ul.list li {
   #emote-bar button {
     padding: 9px 18px 9px 13px;
     font-size: 0.82rem;
-    color: #dcecff;
-    border: 1px solid rgba(110, 160, 230, 0.38);
+    color: #ffe8d6;
+    border: 1px solid rgba(214, 140, 235, 0.38);
     background: linear-gradient(
       180deg,
-      rgba(32, 62, 105, 0.4),
-      rgba(10, 22, 44, 0.4)
+      rgba(80, 38, 128, 0.4),
+      rgba(34, 15, 58, 0.4)
     );
     box-shadow:
-      0 0 18px rgba(64, 140, 255, 0.22),
+      0 0 18px rgba(255, 130, 200, 0.22),
       inset 0 1px 0 rgba(255, 255, 255, 0.12),
-      0 10px 26px rgba(3, 8, 20, 0.4);
+      0 10px 26px rgba(10, 4, 22, 0.4);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
   #emote-bar button:hover {
     background: linear-gradient(
       180deg,
-      rgba(44, 82, 135, 0.55),
-      rgba(15, 30, 58, 0.55)
+      rgba(104, 52, 158, 0.55),
+      rgba(46, 21, 76, 0.55)
     );
-    border-color: rgba(140, 190, 250, 0.6);
+    border-color: rgba(255, 170, 220, 0.6);
   }
   #emote-bar button:active {
     transform: scale(0.96);
@@ -2135,7 +2140,7 @@ ul.list li {
   #chat-log .chat-line {
     font-size: 0.72rem;
     padding: 4px 10px;
-    background: rgba(13, 20, 33, 0.4);
+    background: rgba(24, 11, 40, 0.4);
   }
 
   #joystick {
@@ -2258,15 +2263,15 @@ ul.list li {
   background:
     radial-gradient(
       700px 420px at 50% 32%,
-      rgba(249, 115, 98, 0.16),
+      rgba(255, 149, 61, 0.16),
       transparent 65%
     ),
     radial-gradient(
       520px 340px at 50% 78%,
-      rgba(53, 208, 197, 0.1),
+      rgba(255, 111, 174, 0.1),
       transparent 70%
     ),
-    #0d1421;
+    #170b28;
 }
 #rotate-device[hidden] {
   display: none;
@@ -2276,12 +2281,12 @@ ul.list li {
   width: 58px;
   height: 100px;
   margin-bottom: 18px;
-  border: 2px solid rgba(234, 240, 255, 0.7);
+  border: 2px solid rgba(255, 240, 219, 0.7);
   border-radius: 12px;
-  background: rgba(19, 28, 46, 0.85);
+  background: rgba(37, 19, 60, 0.85);
   box-shadow:
-    0 18px 48px rgba(3, 8, 20, 0.6),
-    0 0 40px rgba(249, 115, 98, 0.16);
+    0 18px 48px rgba(10, 4, 22, 0.6),
+    0 0 40px rgba(255, 149, 61, 0.16);
   animation: rotateDevice 2.4s ease-in-out infinite;
 }
 .rotate-device__phone::before {
@@ -2292,7 +2297,7 @@ ul.list li {
   width: 16px;
   height: 2px;
   border-radius: 2px;
-  background: rgba(234, 240, 255, 0.55);
+  background: rgba(255, 240, 219, 0.55);
   transform: translateX(-50%);
 }
 .rotate-device__phone::after {
@@ -2302,7 +2307,7 @@ ul.list li {
   left: 50%;
   width: 6px;
   height: 6px;
-  border: 1px solid rgba(53, 208, 197, 0.7);
+  border: 1px solid rgba(255, 111, 174, 0.7);
   border-radius: 50%;
   transform: translate(-50%, -50%);
 }
