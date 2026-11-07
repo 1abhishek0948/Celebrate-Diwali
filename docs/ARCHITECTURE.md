@@ -90,7 +90,7 @@ room changes) · `snap` (20 Hz position updates, interest-filtered:
 | `world.js`      | procedurally builds island, 8 house interiors, collider registry, room↔scene switching                            |
 | `actors.js`     | `CharacterRig`: primitive-based humanoid + seated/emote/locomotion poses, avatar palettes, CSS2D name labels      |
 | `controller.js` | local avatar: AABB/circle collision vs. registry, gravity/jump, facing, interact-scan, `playEmote`, `unseat`      |
-| `voice.js`      | WebRTC voice mesh: ≤8 nearest peers, room-scoped, distance attenuation, STUN-only (no TURN)                       |
+| `voice.js`      | WebRTC voice mesh: ≤16 peers, room-wide, equal volume, room-scoped, STUN-only (no TURN)                          |
 | `screens.js`    | UI: HUD, chat, friends, settings, profile, panels, toasts                                                         |
 
 Client sends 15 Hz `st` frames; remote positions are interpolated from the

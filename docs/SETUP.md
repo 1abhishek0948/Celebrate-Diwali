@@ -30,11 +30,13 @@ There is no database: persistent state (names, avatars, friend lists, house
 ownership) lives in `data/profiles.json`, created on first write. Delete it to
 start clean.
 
-## Voice chat (WebRTC proximity)
+## Voice chat (WebRTC room-wide)
 
-Players within 45 m automatically get a direct peer-to-peer audio link with
-distance-based volume falloff. Mic on/off, mute and listen-only live in the
-voice panel (sidebar → mic icon).
+Everyone in the same room gets a direct peer-to-peer audio link at equal
+volume — the whole island map, or everyone inside the same house interior.
+There is no distance falloff. The mesh is capped at 16 simultaneous peers per
+player (nearest first if a room grows past that). Mic on/off, mute and
+listen-only live in the voice panel (sidebar → mic icon).
 
 Requirements & caveats:
 

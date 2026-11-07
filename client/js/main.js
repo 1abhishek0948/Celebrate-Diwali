@@ -1038,7 +1038,7 @@ class Game {
         });
       }
 
-      // remote interpolation + voice proximity
+      // remote interpolation + room-wide voice
       const renderT = performance.now() - SNAPSHOT_BUFFER;
       const candidates = [];
       for (const rp of this.remotePlayers.values()) {

@@ -2,7 +2,7 @@
 
 A 3D multiplayer social island — no combat. Walk around a procedurally generated
 island, visit twenty-four houses, sit on furniture, chat, emote, and talk to
-nearby players over WebRTC voice. Built as a complete prototype: authoritative
+everyone on the island over WebRTC voice. Built as a complete prototype: authoritative
 Node.js lobby/snapshot server + vanilla Three.js browser client, no external
 assets (everything is primitive-geometry), zero build step.
 
@@ -134,7 +134,7 @@ npm run start:game
 - Realistic Ready Player Me full-body avatars (three hairstyles for **both**
   genders) with mocap idle/walk/run/jump/dance plus code-driven wave + namaste
   gestures; a procedural primitive rig is the offline fallback
-- WebRTC voice mesh (≤8 nearest peers, distance-attenuated, room-scoped)
+- WebRTC voice mesh (≤16 peers, room-wide, equal volume, room-scoped)
 - 7 server integration tests, 10-client E2E smoke in headless Chrome,
   100-player load test (`npm run loadtest`)
 

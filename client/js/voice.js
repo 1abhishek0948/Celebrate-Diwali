@@ -1,11 +1,12 @@
 // ---------------------------------------------------------------------------
-// Proximity voice chat (WebRTC mesh, browser-native audio).
+// Room-wide voice chat (WebRTC mesh, browser-native audio).
 //
 //   capture    getUserMedia -> one mic track shared by every peer
-//   transport  RTCPeerConnection per nearby peer; the server only relays
-//              SDP/ICE through the existing WebSocket (`vsig`), media is P2P
-//   proximity  each peer gets an <audio> element; volume follows distance
-//              (VOICE_RADIUS falloff). Peers drop out of range / blocked.
+//   transport  RTCPeerConnection per peer in the same room; the server only
+//              relays SDP/ICE through the existing WebSocket (`vsig`), media is P2P
+//   coverage   everyone in the room (island map or house interior) is connected
+//              at equal volume — no distance falloff. The mesh is capped at
+//              MAX_VOICE_PEERS; in a room above the cap the nearest peers win.
 //
 // Negotiation model:
 //   * Every connection is created with a bidirectional ("sendrecv") audio
@@ -20,7 +21,7 @@
 // Requires HTTPS or localhost for mic access. No TURN server in the
 // prototype: STUN + host candidates work on LAN/localhost, some NATs fail.
 // ---------------------------------------------------------------------------
-import { VOICE_RADIUS, MAX_VOICE_PEERS } from '../shared/constants.js';
+import { MAX_VOICE_PEERS } from '../shared/constants.js';
 
 const ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
 const DISCONNECT_GRACE_MS = 4000;
@@ -34,7 +35,8 @@ export class VoiceChat extends EventTarget {
     this.micMuted = false;
     this.speakerVolume = 0.8;
     this.stream = null;
-    this.peers = new Map();    // id -> { pc, audio, gain, pendingIce, remoteSet, disconnectTimer }
+    this.peers = new Map();    // id -> { pc, audio, pendingIce, remoteSet, disconnectTimer }
+    this._keep = new Set();    // remote ids currently in the room-wide mesh
     this._retries = new Map(); // id -> offer retry count (peer had voice off)
     this.blocked = new Set();  // ids whose voice I muted
     this.selfId = null;
@@ -118,6 +120,7 @@ export class VoiceChat extends EventTarget {
 
   stopListening() {
     this.listening = false;
+    this._keep.clear();
     for (const id of [...this.peers.keys()]) this.hangup(id);
     this.status = this.enabled ? 'on' : 'off';
     this._emit();
@@ -140,22 +143,27 @@ export class VoiceChat extends EventTarget {
 
   setSpeakerVolume(v) {
     this.speakerVolume = Math.max(0, Math.min(1, Number(v) || 0));
-    for (const p of this.peers.values()) p.audio.volume = this.speakerVolume * p.gain;
+    for (const p of this.peers.values()) p.audio.volume = this.speakerVolume;
     this._emit();
   }
 
   block(id) { this.blocked.add(id); this.hangup(id); this._emit(); }
   unblock(id) { this.blocked.delete(id); this._emit(); }
 
-  // -- proximity -------------------------------------------------------------
-  // Called ~every frame by main with [{id, dist}] of nearby remote players.
+  // -- room-wide mesh --------------------------------------------------------
+  // Called ~every frame by main with [{id, dist}] for every remote player in
+  // the same room. Everyone is audible; distance only decides who fills the
+  // mesh cap first when a room has more players than MAX_VOICE_PEERS.
   updatePeers(candidates) {
     if (!this.listening || this.selfId === null) return;
     const keep = new Set(
       candidates
-        .filter((c) => c.dist <= VOICE_RADIUS && !this.blocked.has(c.id))
+        .filter((c) => !this.blocked.has(c.id))
+        .sort((a, b) => a.dist - b.dist || a.id - b.id)
+        .slice(0, MAX_VOICE_PEERS)
         .map((c) => c.id)
     );
+    this._keep = keep;
     for (const id of [...this.peers.keys()]) {
       if (!keep.has(id)) {
         this.hangup(id);
@@ -163,7 +171,6 @@ export class VoiceChat extends EventTarget {
       }
     }
 
-    let created = 0;
     for (const id of keep) {
       const existing = this.peers.get(id);
       if (existing) {
@@ -179,20 +186,7 @@ export class VoiceChat extends EventTarget {
         continue;
       }
       // deterministic offer direction: only the lower id initiates
-      if (id > this.selfId) {
-        if (created >= MAX_VOICE_PEERS) break;
-        created++;
-        this._call(id);
-      }
-    }
-
-    for (const c of candidates) {
-      const p = this.peers.get(c.id);
-      if (!p) continue;
-      const falloff = Math.max(0, 1 - c.dist / VOICE_RADIUS);
-      p.gain = falloff * falloff; // quadratic falloff
-      const vol = this.speakerVolume * p.gain;
-      p.audio.volume = vol;
+      if (id > this.selfId) this._call(id);
     }
   }
 
@@ -202,11 +196,11 @@ export class VoiceChat extends EventTarget {
     const audio = document.createElement('audio');
     audio.autoplay = true;
     audio.playsInline = true;
-    audio.volume = 0;
+    audio.volume = this.speakerVolume;
     document.body.appendChild(audio);
 
     const peer = {
-      pc, audio, gain: 0, pendingIce: [], remoteSet: false,
+      pc, audio, pendingIce: [], remoteSet: false,
       disconnectTimer: null, createdAt: performance.now(), retries: 0,
     };
     this.peers.set(id, peer);
@@ -279,6 +273,10 @@ export class VoiceChat extends EventTarget {
     try {
       if (data.type === 'offer') {
         if (!this.listening) return; // voice switched off locally
+        // Room-wide mesh cap: answer only peers in our current keep set (once
+        // the frame loop has built it) and never exceed the peer cap.
+        if (this._keep.size && !this._keep.has(from)) return;
+        if (!this.peers.has(from) && this.peers.size >= MAX_VOICE_PEERS) return;
         if (this.peers.has(from)) this.hangup(from);
         const peer = this._createPeer(from, false);
         await peer.pc.setRemoteDescription(data.sdp);

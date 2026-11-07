@@ -28,8 +28,10 @@ export const INTEREST_RADIUS = 80; // send remote updates within this distance
 export const MAX_PLAYERS_PER_island = 100; // hard cap per island room (see LOADTEST report)
 
 // --- Voice ------------------------------------------------------------------
-export const VOICE_RADIUS = 45; // audible range
-export const MAX_VOICE_PEERS = 8; // simultaneous outgoing audio peers
+// Room-wide voice: everyone in the same island/house room is connected with no
+// distance attenuation. The mesh is capped for device safety; if a room grows
+// past the cap, the nearest peers are connected first.
+export const MAX_VOICE_PEERS = 16;
 
 // --- Rate limits / basic security -------------------------------------------
 export const CHAT_RATE_PER_S = 3; // messages per rolling 5s window

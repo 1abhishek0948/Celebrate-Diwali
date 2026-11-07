@@ -682,7 +682,7 @@ export class UI {
       } else {
         const ok = await v.enableMic();
         if (ok) {
-          this.toast("Mic on — nearby players can hear you");
+          this.toast("Mic on — everyone here can hear you");
         } else if (v.status === "insecure") {
           this.toast("Mic needs https:// or http://localhost");
         } else if (v.status === "denied") {
