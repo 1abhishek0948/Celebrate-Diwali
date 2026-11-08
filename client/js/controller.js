@@ -40,6 +40,12 @@ export class Controller {
 
     this.pos = new THREE.Vector3(30, 0, 0);
     this.vel = new THREE.Vector3();
+    // Per-frame scratch vectors: reused every update so walking around for an
+    // hour never produces garbage for the GC to collect mid-stride.
+    this._target = new THREE.Vector3();
+    this._dir = new THREE.Vector3();
+    this._eye = new THREE.Vector3();
+    this._prevPos = this.pos.clone();
     this.vy = 0;
     this.yaw = 0; // character facing
     this.camYaw = 0; // camera orbit around player
@@ -355,7 +361,7 @@ export class Controller {
       this.keys.has("ShiftLeft") ||
       this.keys.has("ShiftRight") ||
       (this.joy.active && mag > 0.72);
-    let target = new THREE.Vector3(0, 0, 0);
+    const target = this._target.set(0, 0, 0);
     if (mag > 0.05) {
       const camYaw = this.camYaw;
       // camera-relative forward/right (camera sits behind at +offset)
@@ -419,14 +425,14 @@ export class Controller {
     // raw ground-plane distance drives the rig's stride matching (Y excluded so
     // jump arcs don't spike the cadence); a lightly smoothed speed keeps the
     // mode thresholds (below) from flickering on raw per-frame noise.
-    const dx = this.pos.x - (this._prev?.x ?? this.pos.x);
-    const dz = this.pos.z - (this._prev?.z ?? this.pos.z);
+    const dx = this.pos.x - this._prevPos.x;
+    const dz = this.pos.z - this._prevPos.z;
     const moved = Math.hypot(dx, dz);
     this.motionSpeed +=
       (moved / Math.max(dt, 1e-4) - this.motionSpeed) * Math.min(1, dt * 10);
     this.mode = this.animMode();
     this.rig.tick(dt, this.mode, this._activeEmote(), moved);
-    this._prev = this.pos.clone();
+    this._prevPos.copy(this.pos);
 
     //----------- camera -------------------------------------------------------
     // Fixed, stable third-person boom. Portrait / narrow viewports pull the
@@ -441,16 +447,18 @@ export class Controller {
     this._camDistEff += (wantDist - this._camDistEff) * Math.min(1, dt * 6);
 
     // boom direction (unit): behind the character, lifted by pitch
-    const dir = new THREE.Vector3(
-      Math.sin(this.camYaw) * Math.cos(pitch),
-      Math.sin(pitch) + 0.35,
-      Math.cos(this.camYaw) * Math.cos(pitch),
-    ).normalize();
+    const dir = this._dir
+      .set(
+        Math.sin(this.camYaw) * Math.cos(pitch),
+        Math.sin(pitch) + 0.35,
+        Math.cos(this.camYaw) * Math.cos(pitch),
+      )
+      .normalize();
 
     // obstruction: walk the boom from near to far and stop before the eye
     // point would end up inside a building / the ground
     const dist = this._camObstructDist(dir, this._camDistEff);
-    const eye = this.pos.clone().addScaledVector(dir, dist);
+    const eye = this._eye.copy(this.pos).addScaledVector(dir, dist);
     eye.y = Math.max(eye.y, 0.45);
     this.camera.position.lerp(eye, Math.min(1, dt * 9));
     this.camera.lookAt(

@@ -1369,6 +1369,19 @@ ul.list li {
   display: flex;
   gap: 6px;
 }
+.setting-select {
+  background: var(--bg-soft);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font: inherit;
+  outline: none;
+  min-width: 130px;
+}
+.setting-select:focus {
+  border-color: var(--accent);
+}
 
 /* ===========================================================================
    Diwali economy: wallet chip, quick-use bar, shop + inventory modals

@@ -17,6 +17,7 @@ import {
   HOUSE_PLOTS,
   HOUSE_INTERIOR,
   BEACH_BAR,
+  ISLAND_RADIUS,
   PLAY_RADIUS,
 } from "../shared/constants.js";
 import { Festival } from "./festival.js";
@@ -40,6 +41,10 @@ const mat = (color, extra = {}) =>
 export class World {
   constructor(scene, opts = {}) {
     this.scene = scene;
+    this.quality =
+      opts.quality === "low" || opts.quality === "medium"
+        ? opts.quality
+        : "high";
     this.colliders = []; // {type:'aabb',x0,x1,z0,z1} | {type:'circle',x,z,r}
     this.interactables = []; // {kind,id,x,y,z,label}
     this.island = new THREE.Group();
@@ -142,11 +147,15 @@ export class World {
   // ------------------------------------------------------------- animation --
   tick(timeMs, dt = 0.016) {
     this.windUniform.value = (timeMs % 1e7) / 1000;
-    this.festival.tick(timeMs, dt);
+    // The festival graph lives on the island group; while a player is inside a
+    // house the whole island is hidden, so there is nothing to animate and the
+    // heavy particle/lantern loops can sleep.
+    if (this.island.visible) this.festival.tick(timeMs, dt);
   }
 
   setQuality(q) {
-    this.festival.setQuality(q);
+    this.quality = q === "low" || q === "medium" ? q : "high";
+    this.festival.setQuality(this.quality);
   }
 
   setTimeOfDay(mode) {
@@ -166,7 +175,7 @@ export class World {
     // ocean floor + island base; the top cap carries the tiled tilled-soil
     // PBR texture (cap UVs span the disc, repeat handles world-scale tiling)
     const base = new THREE.Mesh(
-      new THREE.CylinderGeometry(486, 500, 2, 48),
+      new THREE.CylinderGeometry(ISLAND_RADIUS, ISLAND_RADIUS + 14, 2, 48),
       [mats.soilWall, mats.soil, mats.soilWall], // side, top, bottom
     );
     base.position.y = -1;
@@ -174,7 +183,7 @@ export class World {
 
     // beach ring
     const sand = new THREE.Mesh(
-      new THREE.RingGeometry(PLAY_RADIUS - 22, 486, 64),
+      new THREE.RingGeometry(PLAY_RADIUS - 22, ISLAND_RADIUS, 64),
       mats.sand,
     );
     sand.rotation.x = -Math.PI / 2;
@@ -183,7 +192,7 @@ export class World {
 
     // water ring around the island
     const water = new THREE.Mesh(
-      new THREE.RingGeometry(486, 900, 64),
+      new THREE.RingGeometry(ISLAND_RADIUS, 900, 64),
       mats.water,
     );
     water.rotation.x = -Math.PI / 2;
@@ -974,6 +983,15 @@ export class World {
     };
 
     // ---- tree spots: clustered groves + scattered singles -------------------
+    // The forest only covers the playable island (everything beyond the beach
+    // edge is water now), and the counts are thinned per quality tier: these
+    // batches are drawn whenever any part of the island is in view, so fewer
+    // instances directly cuts every-frame vertex work.
+    const tier =
+      this.quality === "high" ? 1 : this.quality === "medium" ? 0.82 : 0.62;
+    const groveTarget = Math.max(30, Math.round(90 * tier));
+    const treeTarget = Math.max(120, Math.round(340 * tier));
+    const fieldTarget = Math.max(16, Math.round(42 * tier));
     const spots = [];
     const minDist = (list, x, z, d) =>
       list.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < d);
@@ -981,9 +999,9 @@ export class World {
     // grove centers (woodland clusters)
     const groves = [];
     let gTries = 0;
-    while (groves.length < 150 && gTries++ < 6000) {
-      const x = (rng() - 0.5) * 2 * 400,
-        z = (rng() - 0.5) * 2 * 400;
+    while (groves.length < groveTarget && gTries++ < 5000) {
+      const x = (rng() - 0.5) * 2 * 340,
+        z = (rng() - 0.5) * 2 * 340;
       if (!this._natureSpotOk(x, z) || minDist(groves, x, z, 26)) continue;
       groves.push([x, z]);
     }
@@ -996,7 +1014,7 @@ export class World {
         spots.push([x, z, rng()]);
       }
       // soft grass floor under the grove
-      for (let i = 0, n2 = 30 + ((rng() * 24) | 0); i < n2; i++) {
+      for (let i = 0, n2 = 20 + ((rng() * 16) | 0); i < n2; i++) {
         const a = rng() * Math.PI * 2,
           rad = 2 + rng() * 10;
         push(
@@ -1016,9 +1034,9 @@ export class World {
 
     // scattered standalone trees between the groves
     let tTries = 0;
-    while (spots.length < 560 && tTries++ < 5600) {
-      const x = (rng() - 0.5) * 2 * 430;
-      const z = (rng() - 0.5) * 2 * 430;
+    while (spots.length < treeTarget && tTries++ < 5000) {
+      const x = (rng() - 0.5) * 2 * 340;
+      const z = (rng() - 0.5) * 2 * 340;
       if (!this._natureSpotOk(x, z) || minDist(spots, x, z, 13)) continue;
       spots.push([x, z, rng()]); // third slot: pre-rolled species roll
     }
@@ -1251,14 +1269,14 @@ export class World {
     // tall-grass meadows: dense grassy fields you can wade through
     const fields = [];
     let fTries = 0;
-    while (fields.length < 90 && fTries++ < 5000) {
-      const x = (rng() - 0.5) * 2 * 430,
-        z = (rng() - 0.5) * 2 * 430;
+    while (fields.length < fieldTarget && fTries++ < 3000) {
+      const x = (rng() - 0.5) * 2 * 340,
+        z = (rng() - 0.5) * 2 * 340;
       if (!this._natureSpotOk(x, z) || minDist(fields, x, z, 18)) continue;
       fields.push([x, z]);
     }
     for (const [fx, fz] of fields) {
-      const n2 = 150 + ((rng() * 100) | 0);
+      const n2 = 130 + ((rng() * 70) | 0);
       for (let i = 0; i < n2; i++) {
         const a = rng() * Math.PI * 2,
           rad = Math.sqrt(rng()) * 10;

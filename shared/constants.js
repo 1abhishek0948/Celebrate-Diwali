@@ -23,7 +23,11 @@ export const GROUND_Y = 0.0;
 
 // --- World -----------------------------------------------------------------
 export const WORLD_HALF = 500; // 1000m x 1000m target world
-export const PLAY_RADIUS = 452; // soft radial clamp of the main island
+// Cozy island: the plaza and every interactive place (shops, house plots,
+// beach bar) keep their exact positions; only the empty outer ring of the
+// island is trimmed, which cuts the amount of scenery rendered every frame.
+export const ISLAND_RADIUS = 330; // visual island/beach edge
+export const PLAY_RADIUS = 300; // soft radial clamp of the main island
 export const INTEREST_RADIUS = 80; // send remote updates within this distance
 export const MAX_PLAYERS_PER_island = 100; // hard cap per island room (see LOADTEST report)
 

@@ -23,6 +23,29 @@ import { enterLandscape, isMobileDevice } from "./orientation.js";
 const $ = (id) => document.getElementById(id);
 
 // ---------------------------------------------------------------------------
+// Device quality tiers (heat control). Pixel ratio is the single biggest GPU
+// cost; the frame cap keeps 90/120 Hz phones from rendering twice as often as
+// they need to. Values are deliberately conservative on phones.
+// ---------------------------------------------------------------------------
+const QUALITY_PRESETS = {
+  low: { dpr: 1, frameCap: 30, shadows: false },
+  medium: { dpr: 1.5, frameCap: 60, shadows: true },
+  high: { dpr: 2, frameCap: 60, shadows: true },
+};
+
+function detectDeviceQuality() {
+  const mem = Number(navigator.deviceMemory) || 0;
+  const cores = Number(navigator.hardwareConcurrency) || 0;
+  if (isMobileDevice()) {
+    if ((mem && mem <= 4) || (cores && cores <= 4)) return "low";
+    return "medium";
+  }
+  // low-memory desktops still get a lighter profile
+  if (mem && mem <= 4) return "medium";
+  return "high";
+}
+
+// ---------------------------------------------------------------------------
 // Wallet cache: lets the HUD paint the last-known balance instantly on reload.
 // It is NEVER trusted for a transaction — the server prices and validates every
 // buy/use, then replies with the authoritative wallet.
@@ -179,6 +202,8 @@ class Game {
     this._initThree();
     this._initCompass();
     this.ui = new UI(this);
+    // Honour a saved Low/Medium/High choice; "auto" keeps the detected tier.
+    this.applyQuality(this.ui.settings.quality || "auto");
     this.controller = new Controller({
       canvas: $("gl"),
       world: this.world,
@@ -208,9 +233,13 @@ class Game {
   // ---------------------------------------------------------------- three ---
   _initThree() {
     const canvas = $("gl");
+    this._autoQuality = detectDeviceQuality();
+    this.quality = this._autoQuality;
     this.renderer = new THREE.WebGLRenderer({
       canvas,
-      antialias: true,
+      // MSAA is cheap insurance on desktop and a real cost on phones; the
+      // high tier only ever runs on capable machines.
+      antialias: this._autoQuality === "high",
       powerPreference: "low-power",
     });
     // Keep the night festival readable on laptop/mobile displays. The old
@@ -223,8 +252,7 @@ class Game {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.setSize(innerWidth, innerHeight);
-    this.quality = "high";
-    this.applyQuality("high");
+    this._applyRendererQuality(this.quality);
 
     this.scene = new THREE.Scene();
     // Festival of Lights: deep indigo twilight with a warm horizon haze,
@@ -320,8 +348,18 @@ class Game {
       ((Math.atan2(this._compassDir.x, this._compassDir.z) * 180) / Math.PI +
         360) %
       360;
-    this._compassTape.style.transform =
-      `translate3d(${-COMPASS_CYCLE - heading * COMPASS_PPD}px, 0, 0)`;
+    // The tape is a wide DOM layer; writing a transform every frame makes the
+    // compositor work hard for sub-pixel changes nobody can see. Only move it
+    // when the heading actually shifted ~0.3°.
+    if (
+      this._compassDrawHeading === undefined ||
+      Math.abs(heading - this._compassDrawHeading) >= 0.3 ||
+      Math.abs(heading - this._compassDrawHeading) > 300 // wrapped past 0°
+    ) {
+      this._compassDrawHeading = heading;
+      this._compassTape.style.transform =
+        `translate3d(${-COMPASS_CYCLE - heading * COMPASS_PPD}px, 0, 0)`;
+    }
 
     const rounded = Math.round(heading) % 360;
     if (this._compassHeading === rounded) return;
@@ -336,29 +374,37 @@ class Game {
   }
 
   // Real shadows: the moon directional light casts through a tight ortho
-  // frustum that follows the player (cheap and crisp), every mesh receives,
-  // and only reasonably-sized meshes cast (keeps the 486 m island disc and
-  // merged grass batches out of the shadow pass).
+  // frustum that follows the player (cheap and crisp). Disabled entirely on
+  // the low tier; on other tiers only reasonably-sized, non-instanced meshes
+  // cast (instanced forests/decor would otherwise double every draw call in
+  // the shadow pass just to render shadows nobody looks at).
   _enableWorldShadows() {
     const moon = this.dayNightLights?.moon;
-    if (moon && !moon.castShadow) {
-      moon.castShadow = true;
-      moon.shadow.mapSize.set(1024, 1024);
-      const c = moon.shadow.camera;
-      c.left = -12;
-      c.right = 12;
-      c.top = 12;
-      c.bottom = -12;
-      c.near = 20;
-      c.far = 160;
-      moon.shadow.bias = -0.0004;
-      moon.shadow.normalBias = 0.02;
-      this.scene.add(moon.target);
-      this._shadowMoonDir = moon.position.clone().normalize();
+    const on = this.quality !== "low";
+    if (moon) {
+      this._shadowMoonDir ||= moon.position.clone().normalize();
+      moon.castShadow = on;
+      if (on) {
+        moon.shadow.mapSize.set(1024, 1024);
+        const c = moon.shadow.camera;
+        c.left = -12;
+        c.right = 12;
+        c.top = 12;
+        c.bottom = -12;
+        c.near = 20;
+        c.far = 160;
+        moon.shadow.bias = -0.0004;
+        moon.shadow.normalBias = 0.02;
+        if (!moon.target.parent) this.scene.add(moon.target);
+      }
     }
     this.scene.traverse((o) => {
       if (!o.isMesh) return;
-      o.receiveShadow = true;
+      o.receiveShadow = on;
+      if (!on || o.isInstancedMesh) {
+        o.castShadow = false;
+        return;
+      }
       let r = o.geometry?.boundingSphere?.radius;
       if (r === undefined) {
         o.geometry?.computeBoundingSphere?.();
@@ -378,11 +424,30 @@ class Game {
     moon.target.updateMatrixWorld();
   }
 
+  // ------------------------------------------------------------- quality ---
+  _applyRendererQuality(q) {
+    const preset = QUALITY_PRESETS[q] || QUALITY_PRESETS.high;
+    this.quality = QUALITY_PRESETS[q] ? q : "high";
+    this._frameMinMs = preset.frameCap ? 1000 / preset.frameCap : 0;
+    if (!this.renderer) return;
+    // Cap the backing-buffer resolution: a 3x-DPR phone drops from 9x the
+    // pixel work to 1x on the low tier, which is the dominant heat saving.
+    const dpr = Math.min(devicePixelRatio || 1, preset.dpr);
+    this.renderer.setPixelRatio(Math.max(0.75, dpr));
+    this.renderer.setSize(innerWidth, innerHeight);
+    this.renderer.shadowMap.enabled = preset.shadows;
+    // Keep the filter type fixed: changing it after materials compile would
+    // require recompiling every shadowed material for no meaningful saving.
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  }
+
   applyQuality(q) {
-    void q;
-    this.quality = "high";
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    this.world?.setQuality("high");
+    // "auto" (or an unknown value) resolves through the device tier.
+    const resolved =
+      q === "low" || q === "medium" || q === "high" ? q : this._autoQuality;
+    this._applyRendererQuality(resolved);
+    this.world?.setQuality(this.quality);
+    this._enableWorldShadows();
   }
 
   setTimeOfDay(mode) {
@@ -519,16 +584,19 @@ class Game {
     jumpBtn.addEventListener("touchend", jumpUp);
     jumpBtn.addEventListener("touchcancel", jumpUp);
 
-    // interact (E) button — only visible while the world offers a prompt
+    // interact (E) button — now acts as the mobile "use my cracker" button on
+    // the island, and falls back to the E interact prompt near interactables.
     const useBtn = $("btn-use");
     if (useBtn) {
       useBtn.addEventListener(
         "touchstart",
         (e) => {
-          if (this.controller.hoverInteract) {
+          e.preventDefault();
+          if (this.game.equipped) {
+            this.game.useEquipped();
+          } else if (this.controller.hoverInteract) {
             this.controller.activate(this.controller.hoverInteract);
           }
-          e.preventDefault();
         },
         { passive: false },
       );
@@ -1017,6 +1085,24 @@ class Game {
 
   // ------------------------------------------------------------------ loop ---
   _loop(tNow) {
+    // Frame cap: skip presentation work until the tier's budget has elapsed.
+    // _lastT only advances on processed frames, so dt stays correct.
+    if (this._frameMinMs) {
+      const minGap = this._frameMinMs * 0.85;
+      if (this._lastFrameAt && tNow - this._lastFrameAt < minGap) {
+        // On low tier (30 fps) don't keep the GPU driver woken at the full
+        // 120 Hz display rate — pace the next wake with setTimeout so the
+        // device can rest the pipeline between the 30 frames it actually
+        // displays. Medium/high keep requestAnimationFrame (they need the
+        // smoother 60 Hz cadence).
+        if (this.quality === "low") {
+          const wait = this._frameMinMs - (tNow - this._lastFrameAt);
+          setTimeout(() => this._loop(performance.now()), Math.max(1, wait));
+        }
+        return;
+      }
+    }
+    this._lastFrameAt = tNow;
     requestAnimationFrame((t) => this._loop(t));
     const t = tNow / 1000;
     if (this._lastT === undefined) this._lastT = t;
@@ -1025,8 +1111,8 @@ class Game {
 
     if (this.playing && this.rig) {
       this.controller.update(dt);
-      this._updateShadowFollow();
-      this._updateCompass();
+      if (this.quality !== "low") this._updateShadowFollow();
+      if (this.quality !== "low") this._updateCompass();
 
       // send state at 15 Hz
       if (tNow - this._lastSend > 1000 / 15) {
@@ -1052,6 +1138,9 @@ class Game {
           rp.rig.root.position.z - this.controller.pos.z,
         );
         candidates.push({ id: rp.id, dist });
+        // Name tags are DOM layers re-projected through CSS2DRenderer; at
+        // distance they are unreadable anyway, so skip them entirely.
+        if (rp.rig.label) rp.rig.label.visible = dist < 70;
       }
       this.voice.updatePeers(candidates);
     }
@@ -1062,7 +1151,15 @@ class Game {
     if (this.world) this.world.tick(tNow, dt);
 
     this.renderer.render(this.scene, this.camera);
-    this.labelRenderer.render(this.scene, this.camera);
+    // CSS2D re-projects every label, re-sorts z-order and writes DOM
+    // transforms. Name tags don't need to track the world smoothly, so we
+    // cut the write rate to ~15 Hz on low tier and 30 Hz otherwise.
+    this._labelAcc = (this._labelAcc || 0) + dt;
+    const labelHz = this.quality === "low" ? 0.066 : 0.033;
+    if (this._labelAcc >= labelHz) {
+      this._labelAcc = 0;
+      this.labelRenderer.render(this.scene, this.camera);
+    }
   }
 }
 

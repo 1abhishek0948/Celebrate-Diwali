@@ -89,10 +89,89 @@ const FAIRY_COLS = [
 ];
 const MARIGOLD = [0xff9a1e, 0xffb733, 0xffd24d, 0xff7a2e, 0xffc44d];
 
+// Per-tier visual density. Pools are always allocated at the "high" caps so
+// quality can be switched live; the tier only changes how much of a pool is
+// simulated/drawn and how often the sky show fires.
+const QUALITY_TIERS = {
+  low: {
+    stars: 900,
+    lanterns: 36,
+    crowd: 32,
+    fwCap: 1100,
+    fwK: 0.55,
+    fwTrail: 22,
+    fwGap: 1.5,
+    fwSalvo: 1,
+    fwExtra: false,
+    fwPop: 16,
+    smokeCap: 90,
+    pfxCap: 850,
+    cracker: { anar: 80, chakri: 62, phuljhadi: 52 },
+    sparkler: 58,
+    motes: 110,
+    streetMotes: 38,
+    mist: 4,
+    textParticles: 600,
+    sparkles: 44,
+    sparkleRate: 3.4,
+    lanternLight: 0.35,
+  },
+  medium: {
+    stars: 1300,
+    lanterns: 54,
+    crowd: 46,
+    fwCap: 1800,
+    fwK: 0.8,
+    fwTrail: 34,
+    fwGap: 1.15,
+    fwSalvo: 2,
+    fwExtra: false,
+    fwPop: 21,
+    smokeCap: 170,
+    pfxCap: 1400,
+    cracker: { anar: 108, chakri: 86, phuljhadi: 68 },
+    sparkler: 80,
+    motes: 170,
+    streetMotes: 64,
+    mist: 6,
+    textParticles: 900,
+    sparkles: 70,
+    sparkleRate: 4.4,
+    lanternLight: 0.6,
+  },
+  high: {
+    stars: 1600,
+    lanterns: 70,
+    crowd: 60,
+    fwCap: 2600,
+    fwK: 1,
+    fwTrail: 46,
+    fwGap: 1,
+    fwSalvo: 2,
+    fwExtra: true,
+    fwPop: 26,
+    smokeCap: 260,
+    pfxCap: 2000,
+    cracker: { anar: 132, chakri: 110, phuljhadi: 88 },
+    sparkler: 100,
+    motes: 240,
+    streetMotes: 90,
+    mist: 9,
+    textParticles: 1200,
+    sparkles: 96,
+    sparkleRate: 5.5,
+    lanternLight: 0.8,
+  },
+};
+
 export class Festival {
   constructor(world, opts = {}) {
     this.world = world;
-    this.quality = "high";
+    this.quality =
+      opts.quality === "low" || opts.quality === "medium"
+        ? opts.quality
+        : "high";
+    this.tier = QUALITY_TIERS[this.quality];
     this.timeOfDay = "night";
     // honour the OS "reduce motion" setting: calmer animation, no camera sweep
     this.reduceMotion =
@@ -141,6 +220,9 @@ export class Festival {
     this._registerInteractions();
 
     world.island.add(this.root);
+    // Apply the starting tier to all live pools/ranges (builders above always
+    // allocate the high caps so quality can change later without rebuilding).
+    this.setQuality(this.quality);
   }
 
   // ---------------------------------------------------------------- helpers --
@@ -243,8 +325,10 @@ export class Festival {
     sky.renderOrder = -10;
     this.root.add(sky);
 
-    // stars (upper hemisphere)
-    const N = this.quality === "high" ? 1600 : 900;
+    // stars (upper hemisphere) — allocated at the high cap; the active count
+    // is a draw range controlled by setQuality.
+    const N = 1600;
+    this.starsMax = N;
     const pos = new Float32Array(N * 3);
     const col = new Float32Array(N * 3);
     for (let i = 0; i < N; i++) {
@@ -1858,7 +1942,8 @@ export class Festival {
 
   // --------------------------------------------------------------- lanterns --
   _buildLanterns() {
-    const max = this.quality === "high" ? 70 : 44;
+    // Max pool; setQuality selects the active count.
+    const max = 70;
     this.lanternMax = max;
     const bodyGeo = new THREE.SphereGeometry(0.56, 8, 6);
     bodyGeo.scale(1, 1.2, 1);
@@ -1952,7 +2037,8 @@ export class Festival {
 
   // ------------------------------------------------------------------ crowd --
   _buildCrowd() {
-    const max = this.quality === "high" ? 60 : 36;
+    // Max pool; setQuality selects how many instances are drawn and ticked.
+    const max = 60;
     this.crowdMax = max;
     this.crowdRobe = new THREE.InstancedMesh(
       new THREE.ConeGeometry(0.44, 1.06, 8),
@@ -2009,11 +2095,13 @@ export class Festival {
     this._crowdQ = new THREE.Quaternion();
     this._crowdP = new THREE.Vector3();
     this._crowdS = new THREE.Vector3();
+    this._crowdE = new THREE.Euler();
   }
 
   // -------------------------------------------------------------- fireworks --
   _buildFireworks() {
-    const max = this.quality === "high" ? 2600 : 1300;
+    // Max pool; setQuality moves this.fwCap (simulation + draw range).
+    const max = 2600;
     this.fwMax = max;
     this.fwNext = 0;
     this.fwVel = new Float32Array(max * 3);
@@ -2104,7 +2192,7 @@ export class Festival {
 
   // spawn one spark into the shared additive pool
   _spark(x, y, z, vx, vy, vz, r, g, b, life, grav = 1) {
-    const idx = this.fwNext++ % this.fwMax;
+    const idx = this.fwNext++ % this.fwCap;
     const i3 = idx * 3;
     const p = this.fwPoints.geometry.attributes.position.array;
     p[i3] = x;
@@ -2124,9 +2212,8 @@ export class Festival {
 
   // Aerial shots — several distinct patterns so no two bursts look alike.
   _fwBurst(x, y, z, col, type) {
-    const hi = this.quality === "high";
     type = type || this._pick(this.fwTypes);
-    const k = hi ? 1 : 0.8;
+    const k = this.tier.fwK;
     const push = (vx, vy, vz, life, tint, grav) => {
       const r = col[0] * tint,
         g = col[1] * tint,
@@ -2286,7 +2373,7 @@ export class Festival {
     const r = this._rr(50, 150);
     const x = Math.cos(a) * r,
       z = Math.sin(a) * r;
-    const idx = this.fwNext++ % this.fwMax;
+    const idx = this.fwNext++ % this.fwCap;
     this.rockets.push({
       idx,
       x,
@@ -2311,7 +2398,7 @@ export class Festival {
   }
 
   _updateFireworks(dt) {
-    const hi = this.quality === "high";
+    const tier = this.tier;
     // rockets rise on a spark + smoke trail, then burst at altitude
     for (let i = this.rockets.length - 1; i >= 0; i--) {
       const rk = this.rockets[i];
@@ -2347,7 +2434,7 @@ export class Festival {
         this._fwSet(rk.idx, rk.x, rk.y, rk.z, 1.0, 0.86, 0.62);
       }
       // trail sparks
-      rk.acc += dt * (hi ? 46 : 30);
+      rk.acc += dt * tier.fwTrail;
       while (rk.acc >= 1) {
         rk.acc -= 1;
         const t = this._rr(0.2, 0.7);
@@ -2421,25 +2508,29 @@ export class Festival {
       }
     }
     // schedule the show — rockets and direct aerial shots at varied heights.
-    // Denser than before: a full festival sky, with a burst roughly every
-    // 1.5 s and occasional triple salvos (pool budget stays ~1/3 used).
+    // The tier controls salvo size and cadence so low-end phones still get the
+    // full festival feel with far fewer live particles.
     this.nextBurst -= dt;
     if (this.nextBurst <= 0) {
-      this.nextBurst = this._rr(0.9, 2.2) * (this.reduceMotion ? 1.6 : 1);
-      for (let s = 0; s < 2; s++) {
+      this.nextBurst =
+        this._rr(0.9, 2.2) *
+        tier.fwGap *
+        (this.reduceMotion ? 1.6 : 1);
+      for (let s = 0; s < tier.fwSalvo; s++) {
         if (this.rand() < 0.55) this._launchRocket();
         else this._aerialShot();
       }
-      if (hi && !this.reduceMotion && this.rand() < 0.4) {
+      if (tier.fwExtra && !this.reduceMotion && this.rand() < 0.4) {
         if (this.rand() < 0.5) this._launchRocket();
         else this._aerialShot();
       }
     }
     // integrate sparks
+    const cap = this.fwCap;
     const p = this.fwPoints.geometry.attributes.position.array;
     const c = this.fwPoints.geometry.attributes.color.array;
     const drag = Math.exp(-dt * 0.9);
-    for (let i = 0; i < this.fwMax; i++) {
+    for (let i = 0; i < cap; i++) {
       if (this.fwLife[i] <= 0) {
         c[i * 3] = c[i * 3 + 1] = c[i * 3 + 2] = 0;
         continue;
@@ -2493,7 +2584,8 @@ export class Festival {
   // shader, each puff's vertex colour is lerped toward the night-sky tone as it
   // ages, so it dissolves seamlessly into the backdrop.
   _buildSmoke() {
-    const max = this.quality === "high" ? 260 : 140;
+    // Max pool; setQuality moves this.smokeCap.
+    const max = 260;
     this.smokeMax = max;
     this.smokeNext = 0;
     this.smokeVel = new Float32Array(max * 3);
@@ -2529,7 +2621,7 @@ export class Festival {
 
   _puff(x, y, z, spread = 0.6, life = 2, bright = 0.5) {
     if (!this.smokePoints) return;
-    const idx = this.smokeNext++ % this.smokeMax;
+    const idx = this.smokeNext++ % this.smokeCap;
     const i3 = idx * 3;
     const p = this.smokePoints.geometry.attributes.position.array;
     p[i3] = x + this._rr(-spread, spread);
@@ -2552,7 +2644,7 @@ export class Festival {
     const c = this.smokePoints.geometry.attributes.color.array;
     const night = this._smokeNight;
     const drag = Math.exp(-dt * 0.55);
-    for (let i = 0; i < this.smokeMax; i++) {
+    for (let i = 0; i < this.smokeCap; i++) {
       if (this.smokeLife[i] <= 0) {
         c[i * 3] = c[i * 3 + 1] = c[i * 3 + 2] = 0;
         continue;
@@ -2667,7 +2759,7 @@ export class Festival {
         vent.position.y = 0.53;
         g.add(vent);
         c.tip = vent;
-        c.rate = this.quality === "high" ? 132 : 78;
+        c.rate = this.tier.cracker.anar;
       } else if (type === "chakri") {
         const spinner = new THREE.Group();
         spinner.position.y = 0.07;
@@ -2684,7 +2776,7 @@ export class Festival {
         rim.rotation.x = Math.PI / 2;
         spinner.add(rim);
         c.spinner = spinner;
-        c.rate = this.quality === "high" ? 110 : 66;
+        c.rate = this.tier.cracker.chakri;
       } else {
         const hand = new THREE.Mesh(
           new THREE.SphereGeometry(0.13, 8, 6),
@@ -2710,7 +2802,7 @@ export class Festival {
         c.holder = holder;
         c.tip = tip;
         c.halo = halo;
-        c.rate = this.quality === "high" ? 88 : 55;
+        c.rate = this.tier.cracker.phuljhadi;
       }
       this.root.add(g);
       this._clear(x, z, 2.4);
@@ -2798,7 +2890,7 @@ export class Festival {
         // occasional bright "pop": a ring of brighter, faster sparks
         if (this.rand() < dt * 2.2) {
           c.flash = 1;
-          for (let k = 0; k < (this.quality === "high" ? 26 : 16); k++) {
+          for (let k = 0; k < this.tier.fwPop; k++) {
             const a = this.rand() * Math.PI * 2,
               sp = this._rr(2, 5);
             this._pfxSpark(
@@ -2979,7 +3071,8 @@ export class Festival {
     // Large pool: it carries every ambient ground cracker (8 props x ~90-105
     // sparks/s with ~1 s lifetimes plus the handheld sparklers and bought
     // fountain props), so it needs roughly a second of full-rate output.
-    const max = this.quality === "high" ? 2000 : 1000;
+    // Allocated at the high cap; setQuality moves this.pfxCap.
+    const max = 2000;
     this.pfxSparkMax = max;
     this.pfxSparkNext = 0;
     this.pfxSparkVel = new Float32Array(max * 3);
@@ -3015,7 +3108,7 @@ export class Festival {
 
   _pfxSpark(x, y, z, vx, vy, vz, r, g, b, life, grav = 1) {
     if (!this.pfxSparkPoints) return;
-    const idx = this.pfxSparkNext++ % this.pfxSparkMax;
+    const idx = this.pfxSparkNext++ % this.pfxSparkCap;
     const i3 = idx * 3;
     const p = this.pfxSparkPoints.geometry.attributes.position.array;
     p[i3] = x;
@@ -3039,7 +3132,7 @@ export class Festival {
     const c = this.pfxSparkPoints.geometry.attributes.color.array;
     const drag = 0.985;
     let live = false;
-    for (let i = 0; i < this.pfxSparkMax; i++) {
+    for (let i = 0; i < this.pfxSparkCap; i++) {
       if (this.pfxSparkLife[i] <= 0) continue;
       live = true;
       const i3 = i * 3;
@@ -3211,7 +3304,7 @@ export class Festival {
       vent.position.y = 0.53;
       g.add(vent);
       c.tip = vent;
-      c.rate = this.quality === "high" ? 132 : 78;
+      c.rate = this.tier.cracker.anar;
     } else {
       const spinner = new THREE.Group();
       spinner.position.y = 0.07;
@@ -3221,14 +3314,14 @@ export class Festival {
       rim.rotation.x = Math.PI / 2;
       spinner.add(rim);
       c.spinner = spinner;
-      c.rate = this.quality === "high" ? 110 : 66;
+      c.rate = this.tier.cracker.chakri;
     }
     this.root.add(g);
     this.pfxProps.push(c);
   }
 
   _launchRocketAt(x, z, rng = this.rand, ry = 0, self = false) {
-    const idx = this.fwNext++ % this.fwMax;
+    const idx = this.fwNext++ % this.fwCap;
     // Bought rockets arc forward into the sky (rather than straight overhead)
     // so the trail + burst stay inside the third-person camera's view.
     const fuse = 1.0 + rng() * 0.6;
@@ -3497,7 +3590,7 @@ export class Festival {
         s.halo.scale.setScalar(
           (2.2 + 0.4 * Math.sin(this.time * 14 + s.phase)) * fade,
         );
-        s.acc += (this.quality === "high" ? 100 : 60) * rateF * dt;
+        s.acc += this.tier.sparkler * rateF * dt;
         while (s.acc >= 1) {
           s.acc -= 1;
           const a = this.rand() * Math.PI * 2;
@@ -3555,13 +3648,16 @@ export class Festival {
 
   // ------------------------------------------------------- ambient particles --
   _buildMotes() {
-    const N = this.quality === "high" ? 240 : 130;
-    const streetN = this.quality === "high" ? 90 : 50;
+    // Max pool; street motes are first so a smaller draw range still keeps the
+    // characteristic golden drift down the festival street.
+    const N = 240;
+    const streetN = 90;
+    this.moteMax = N;
     const pos = new Float32Array(N * 3);
     this.moteState = [];
     for (let i = 0; i < N; i++) {
       let st;
-      if (i >= N - streetN) {
+      if (i < streetN) {
         // golden motes drifting down the festival street
         st = {
           x: this._rr(-14, 14),
@@ -3611,26 +3707,28 @@ export class Festival {
       [1, "rgba(150,165,220,0)"],
     ]);
     this.mist = [];
-    const n = this.quality === "high" ? 9 : 5;
+    // Max pool; setQuality toggles the active sprites. The two near-ground
+    // sprites come first so a low tier keeps the mist players actually see.
+    const n = 9;
     for (let i = 0; i < n; i++) {
-      const nearMountains = i < n - 2;
+      const far = i >= 2;
       const a = this._rr(0, Math.PI * 2);
-      const r = nearMountains ? this._rr(430, 560) : this._rr(60, 220);
+      const r = far ? this._rr(430, 560) : this._rr(60, 220);
       const sp = new THREE.Sprite(
         new THREE.SpriteMaterial({
           map: tex,
           color: 0x9fb0e0,
           transparent: true,
           depthWrite: false,
-          opacity: nearMountains ? 0.16 : 0.09,
+          opacity: far ? 0.16 : 0.09,
         }),
       );
       sp.position.set(
         Math.cos(a) * r,
-        nearMountains ? this._rr(6, 26) : this._rr(3, 9),
+        far ? this._rr(6, 26) : this._rr(3, 9),
         Math.sin(a) * r,
       );
-      const s = nearMountains ? this._rr(220, 360) : this._rr(90, 170);
+      const s = far ? this._rr(220, 360) : this._rr(90, 170);
       sp.scale.set(s, s * 0.45, 1);
       sp.userData = {
         spin: this._rr(-0.02, 0.02),
@@ -3686,7 +3784,8 @@ export class Festival {
         const l = this._newLantern(false);
         l.x = this._rr(-9, 9);
         l.z = this._rr(-9, 9);
-        this.lanterns[(this.rand() * this.lanterns.length) | 0] = l;
+        const n = this.lanternCount || this.lanterns.length;
+        this.lanterns[(this.rand() * n) | 0] = l;
       }
       this._notify("A paper lantern drifts into the night sky.");
     } else if (id === "temple") {
@@ -3709,19 +3808,22 @@ export class Festival {
     // slow sky drift
     if (this.stars) this.stars.rotation.y = t * 0.004;
 
-    // lanterns rise + sway
-    const M = new THREE.Matrix4(),
-      q = new THREE.Quaternion(),
-      p = new THREE.Vector3(),
-      s = new THREE.Vector3();
+    // lanterns rise + sway (temporaries are cached on the instance: this loop
+    // runs at the frame rate for the whole session)
+    const M = (this._lanternM ||= new THREE.Matrix4()),
+      q = (this._lanternQ ||= new THREE.Quaternion()),
+      p = (this._lanternP ||= new THREE.Vector3()),
+      s = (this._lanternS ||= new THREE.Vector3()),
+      e = (this._lanternE ||= new THREE.Euler());
     const gp = this.lanternGlowGeo.attributes.position.array;
-    for (let i = 0; i < this.lanterns.length; i++) {
+    const lanternCount = this.lanternCount;
+    for (let i = 0; i < lanternCount; i++) {
       const l = this.lanterns[i];
       l.y += l.vy * dt;
       if (l.y > 135) Object.assign(l, this._newLantern(false));
       const x = l.x + Math.sin(t * 0.3 + l.phase) * l.sway;
       const z = l.z + Math.cos(t * 0.27 + l.phase) * l.sway;
-      q.setFromEuler(new THREE.Euler(0, t * 0.2 + l.phase, 0));
+      q.setFromEuler(e.set(0, t * 0.2 + l.phase, 0));
       p.set(x, l.y, z);
       s.setScalar(l.sc);
       M.compose(p, q, s);
@@ -3734,13 +3836,13 @@ export class Festival {
     this.lanternGlowGeo.attributes.position.needsUpdate = true;
     if (this.lanternLights) {
       for (let i = 0; i < this.lanternLights.length; i++) {
-        const l = this.lanterns[(i * 7) % this.lanterns.length];
+        const l = this.lanterns[(i * 7) % lanternCount];
         this.lanternLights[i].position.set(
           l.x + Math.sin(t * 0.3 + l.phase) * l.sway,
           l.y,
           l.z + Math.cos(t * 0.27 + l.phase) * l.sway,
         );
-        this.lanternLights[i].intensity = this.quality === "high" ? 0.8 : 0.5;
+        this.lanternLights[i].intensity = this.tier.lanternLight;
       }
     }
 
@@ -3804,7 +3906,7 @@ export class Festival {
     // ambient motes drift
     if (this.motes) {
       const mp = this.motes.geometry.attributes.position.array;
-      for (let i = 0; i < this.moteState.length; i++) {
+      for (let i = 0; i < this.moteCount; i++) {
         const st = this.moteState[i];
         const yy = st.y + Math.sin(t * 0.6 + st.ph) * 0.6;
         mp[i * 3] = st.x + Math.sin(t * 0.4 + st.ph) * 0.7;
@@ -3816,6 +3918,7 @@ export class Festival {
 
     // mist drift
     for (const sp of this.mist || []) {
+      if (!sp.visible) continue;
       sp.material.rotation += sp.userData.spin * dt;
       sp.position.x += Math.cos(sp.userData.phase) * sp.userData.drift * dt;
       sp.position.y =
@@ -3835,8 +3938,9 @@ export class Festival {
     const M = this._crowdM,
       q = this._crowdQ,
       p = this._crowdP,
-      s = this._crowdS;
-    for (let i = 0; i < this.crowd.length; i++) {
+      s = this._crowdS,
+      e = this._crowdE;
+    for (let i = 0; i < this.crowdCount; i++) {
       const c = this.crowd[i];
       let x, z, ry, bob;
       if (c.kind === "stroll") {
@@ -3858,7 +3962,7 @@ export class Festival {
         ry = Math.atan2(c.cx - x, c.cz - z) + Math.sin(t * 1.4 + c.phase) * 0.3;
         bob = Math.abs(Math.sin(t * 2.2 + c.phase)) * 0.06;
       }
-      q.setFromEuler(new THREE.Euler(0, ry, 0));
+      q.setFromEuler(e.set(0, ry, 0));
       p.set(x, bob + 0.53 * c.sc, z);
       s.setScalar(c.sc);
       M.compose(p, q, s);
@@ -3876,46 +3980,101 @@ export class Festival {
   }
 
   // --------------------------------------------------------------- quality ---
-  setQuality(q) {
-    void q;
-    this.quality = "high";
-    if (this.stars) {
-      const N = this.quality === "high" ? 1600 : 900;
-      this.stars.geometry.setDrawRange(0, N);
+  _clearParticlePool(points, life) {
+    if (!points) return;
+    if (life) life.fill(0);
+    const col = points.geometry?.attributes?.color;
+    if (col) {
+      col.array.fill(0);
+      col.needsUpdate = true;
     }
-    if (this.lanternBody)
-      this.lanternBody.count = Math.min(
-        this.lanternMax,
-        this.quality === "high" ? 70 : 44,
-      );
-    if (this.lanternGlow) {
-      this.lanternGlowGeo.setDrawRange(
-        0,
-        Math.min(this.lanternMax, this.quality === "high" ? 70 : 44),
-      );
-    }
-    if (this.crowdRobe) {
-      const n = Math.min(this.crowdMax, this.quality === "high" ? 60 : 36);
-      this.crowdRobe.count = n;
-      this.crowdTorso.count = n;
-      this.crowdHead.count = n;
-    }
+  }
+
+  _applyLightLevels() {
     const day = this.timeOfDay === "day";
     for (const pl of this._shrineLights || [])
       pl.userData.baseIntensity = day ? 0.08 : 1.1;
     for (const pl of this._houseLights || [])
       pl.userData.baseIntensity = day ? 0.06 : 0.9;
+  }
+
+  setQuality(q) {
+    const key = q === "low" || q === "medium" ? q : "high";
+    const tier = QUALITY_TIERS[key];
+    this.quality = key;
+    this.tier = tier;
+
+    if (this.stars) {
+      this.stars.geometry.setDrawRange(
+        0,
+        Math.min(this.starsMax || 1600, tier.stars),
+      );
+    }
+
+    this.lanternCount = Math.min(this.lanternMax || 0, tier.lanterns);
+    if (this.lanternBody) this.lanternBody.count = this.lanternCount;
+    if (this.lanternGlowGeo)
+      this.lanternGlowGeo.setDrawRange(0, this.lanternCount);
+
+    this.crowdCount = Math.min(this.crowdMax || 0, tier.crowd);
+    if (this.crowdRobe) {
+      this.crowdRobe.count = this.crowdCount;
+      this.crowdTorso.count = this.crowdCount;
+      this.crowdHead.count = this.crowdCount;
+    }
+
+    // Particle pools: shrink the simulated + drawn range, wipe stale slots so
+    // switching back to a higher tier never pops in old sparks.
+    const fwCap = Math.min(this.fwMax || 0, tier.fwCap);
+    if (fwCap !== this.fwCap) {
+      this.fwCap = fwCap;
+      this._clearParticlePool(this.fwPoints, this.fwLife);
+      this.fwBounce?.fill(0);
+      if (this.rockets) for (const rk of this.rockets) rk.idx %= fwCap;
+      if (this.fwPoints) this.fwPoints.geometry.setDrawRange(0, fwCap);
+    }
+
+    const smokeCap = Math.min(this.smokeMax || 0, tier.smokeCap);
+    if (smokeCap !== this.smokeCap) {
+      this.smokeCap = smokeCap;
+      this._clearParticlePool(this.smokePoints, this.smokeLife);
+      if (this.smokePoints) this.smokePoints.geometry.setDrawRange(0, smokeCap);
+    }
+
+    const pfxCap = Math.min(this.pfxSparkMax || 0, tier.pfxCap);
+    if (pfxCap !== this.pfxSparkCap) {
+      this.pfxSparkCap = pfxCap;
+      this._clearParticlePool(this.pfxSparkPoints, this.pfxSparkLife);
+      this.pfxSparkBounce?.fill(0);
+      if (this.pfxSparkPoints)
+        this.pfxSparkPoints.geometry.setDrawRange(0, pfxCap);
+    }
+
+    this.moteCount = Math.min(this.moteState?.length || 0, tier.motes);
+    if (this.motes) this.motes.geometry.setDrawRange(0, this.moteCount);
+
+    for (let i = 0; i < (this.mist?.length || 0); i++)
+      this.mist[i].visible = i < tier.mist;
+
+    this.sparkleCount = Math.min(this.sparkleMax || 0, tier.sparkles);
+    if (this.textSparkles)
+      this.textSparkles.geometry.setDrawRange(0, this.sparkleCount);
+
     if (this.textParticles) {
       this.textParticles.geometry.setDrawRange(
         0,
-        Math.min(this.textPMax, this.quality === "high" ? 1200 : 700),
+        Math.min(this.textPMax || 0, tier.textParticles),
       );
     }
+
+    const rates = tier.cracker;
     for (const c of this.crackers || []) {
-      if (c.type === "anar") c.rate = this.quality === "high" ? 105 : 62;
-      else if (c.type === "chakri") c.rate = this.quality === "high" ? 92 : 56;
-      else c.rate = this.quality === "high" ? 72 : 44;
+      if (c.type === "anar") c.rate = rates.anar;
+      else if (c.type === "chakri") c.rate = rates.chakri;
+      else c.rate = rates.phuljhadi;
     }
+
+    this._applyLightLevels();
   }
 
   setTimeOfDay(mode) {
@@ -3930,7 +4089,8 @@ export class Festival {
     }
     if (this.stars) this.stars.visible = !day;
     if (this.moonSprite) this.moonSprite.visible = !day;
-    this.setQuality("high");
+    // Quality is independent of time of day: never reset the user's tier here.
+    this._applyLightLevels();
   }
 
   // ============================================ "HAPPY DIWALI" 3D SKY TEXT ===
@@ -4438,7 +4598,7 @@ export class Festival {
       }
       return toWorld(ix + iw * 0.5, iy + ih * 0.5);
     };
-    const N = this.quality === "high" ? 1200 : 700;
+    const N = 1200;
     this.textPMax = N;
     const pos = new Float32Array(N * 3);
     const col = new Float32Array(N * 3);
@@ -4511,7 +4671,7 @@ export class Festival {
       }
       return toWorld(ix + iw * 0.5, iy + ih * 0.5);
     };
-    const N = this.quality === "high" ? 96 : 54;
+    const N = 96;
     this.sparkleMax = N;
     this.sparkleNext = 0;
     this.sparkleAcc = 0;
@@ -4680,10 +4840,10 @@ export class Festival {
         const pa = this.textSparkles.geometry.attributes.position.array;
         const ca = this.textSparkles.geometry.attributes.color.array;
         const tz = TEXT_DEPTH / 2 + 0.6;
-        this.sparkleAcc += dt * (this.quality === "high" ? 5.5 : 3.2);
+        this.sparkleAcc += dt * this.tier.sparkleRate;
         while (this.sparkleAcc >= 1) {
           this.sparkleAcc -= 1;
-          const s = st[this.sparkleNext++ % this.sparkleMax];
+          const s = st[this.sparkleNext++ % this.sparkleCount];
           const [sx, sy] = this._textSample();
           s.x = sx;
           s.y = sy;
@@ -4697,7 +4857,7 @@ export class Festival {
           s.cg = 0.74 + this.textRand() * 0.22;
           s.cb = 0.34 + this.textRand() * 0.28;
         }
-        for (let i = 0; i < this.sparkleMax; i++) {
+        for (let i = 0; i < this.sparkleCount; i++) {
           const s = st[i];
           const i3 = i * 3;
           if (s.life <= 0) {

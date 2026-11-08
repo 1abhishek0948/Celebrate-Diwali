@@ -84,9 +84,12 @@ class AvatarRig {
     this.mixer.update(0); // pose from the idle clip before first render
     rig.root.add(this.model);
 
-    // gesture layer state (wave / greet / dance): {name, t, src} | null
+    // gesture layer state (wave / greet / dance): {name, t, key, blend} | null
     this.gesture = null;
-    this._lastEmote = null; // last emote object consumed by the gesture layer
+    // Key of the last emote consumed by the gesture layer. Keying on
+    // `${e}:${started}` instead of object identity means a replayed/retriggered
+    // emote is detected reliably (and the same emote never restarts itself).
+    this._lastEmoteKey = null;
     this._blinkAt = 1.2 + Math.random() * 2.5;
     this.speedEma = 0;
 
@@ -98,8 +101,6 @@ class AvatarRig {
     this._gv3 = new THREE.Vector3();
     this._gv4 = new THREE.Vector3();
     this._up = new THREE.Vector3(0, 1, 0);
-    this._fwd = new THREE.Vector3(0, 0, 1);
-    this._side = new THREE.Vector3(1, 0, 0);
     this._iv1 = new THREE.Vector3();
     this._iv2 = new THREE.Vector3();
     this._iv3 = new THREE.Vector3();
@@ -207,31 +208,47 @@ class AvatarRig {
 
     // ---------------- gesture layer (wave / namaste / dance) ----------------
     const e = emoteNow ? emoteNow.e : null;
+    const emoteKey = emoteNow
+      ? `${emoteNow.e}:${emoteNow.started ?? 0}`
+      : null;
+    const isGesture = e === 'wave' || e === 'greet' || e === 'dance';
     if (this.gesture) {
       const g = this.gesture;
       g.t += dt;
-      if (emoteNow !== g.src) {
-        // the driving emote expired (null) or a different emote arrived
-        if (emoteNow && (e === 'wave' || e === 'greet' || e === 'dance')) {
-          this.gesture = { name: e, t: 0, src: emoteNow };
-        } else if ((g.name === 'wave' || g.name === 'greet') &&
-                   g.t < (g.name === 'wave' ? 3.0 : 3.4)) {
-          this._lastEmote = g.src;
-          g.src = null; // let the one-shot wave/namaste finish its own arc
+      const gd = g.name === 'wave' ? 3.0 : g.name === 'greet' ? 3.4 : 0;
+      if (g.done) {
+        // One-shot wave/namaste finishing after its driving emote ended
+        // early: keep the arc playing until its own duration is up, unless a
+        // brand-new emote arrives in the meantime.
+        if (isGesture && emoteKey) {
+          this.gesture = { name: e, t: 0, key: emoteKey, blend: true };
+          this._lastEmoteKey = emoteKey;
+        } else if (gd && g.t >= gd) {
+          this.gesture = null;
+        }
+      } else if (emoteKey !== g.key) {
+        if (isGesture) {
+          // New wave/greet/dance (different type, or a newly started
+          // instance): switch immediately, starting near full envelope so
+          // the arms do not pop back through the idle pose first.
+          this.gesture = { name: e, t: 0, key: emoteKey, blend: true };
+          this._lastEmoteKey = emoteKey;
+        } else if (gd && g.t < gd) {
+          // Source emote expired: let the one-shot finish its own arc.
+          g.done = true;
+          this._lastEmoteKey = g.key;
+          g.key = null;
         } else {
-          this._lastEmote = g.src;
+          if (g.key) this._lastEmoteKey = g.key;
           this.gesture = null;
         }
-      } else {
-        const gd = g.name === 'wave' ? 3.0 : g.name === 'greet' ? 3.4 : 0;
-        if (gd && g.t >= gd) {
-          this._lastEmote = g.src;
-          this.gesture = null;
-        }
+      } else if (gd && g.t >= gd) {
+        this._lastEmoteKey = g.key;
+        this.gesture = null;
       }
-    } else if ((e === 'wave' || e === 'greet' || e === 'dance') &&
-               emoteNow !== this._lastEmote) {
-      this.gesture = { name: e, t: 0, src: emoteNow };
+    } else if (isGesture && emoteKey !== this._lastEmoteKey) {
+      this._lastEmoteKey = emoteKey;
+      this.gesture = { name: e, t: 0, key: emoteKey, blend: false };
     }
 
     // ---------------- locomotion blend targets ------------------------------
@@ -310,17 +327,21 @@ class AvatarRig {
     if (this.gesture && (this.gesture.name === 'wave' || this.gesture.name === 'greet')) {
       const g = this.gesture;
       const gd = g.name === 'wave' ? 3.0 : 3.4;
-      const env = smoothstep(0.05, 0.35, g.t) * (1 - smoothstep(gd - 0.45, gd, g.t));
+      const easeIn = g.blend
+        ? smoothstep(0.02, 0.22, g.t)
+        : smoothstep(0.05, 0.35, g.t);
+      const env = easeIn * (1 - smoothstep(gd - 0.45, gd, g.t));
       if (g.name === 'wave') {
-        // Right arm up beside the head, elbow out+down, palm facing forward,
-        // rocking side to side about the forearm axis (a real hand-wave).
+        // Right arm up beside the head, elbow out+down, palm toward the
+        // camera (avatar-local -Z), rocking side to side about the forearm
+        // axis (a real hand-wave).
         const osc = Math.sin(g.t * 8.5);
         const wrist = this._gv1.set(-0.27, 1.58 + osc * 0.012, 0.10);
         const bend = this._gv2.set(-0.55, -0.75, 0.05);
         const up = this._up;
-        const fwd = this._fwd;
-        const right = this._side.set(1, 0, 0); // basis x = y cross z
-        this._ikArm('Right', wrist, bend, [right, up, fwd], env, dt, osc * 0.55, osc * 0.1);
+        const palmN = this._gv3.set(0, 0, -1);
+        const bx = this._gv4.crossVectors(up, palmN); // (-1, 0, 0)
+        this._ikArm('Right', wrist, bend, [bx, up, palmN], env, dt, osc * 0.55, osc * 0.1);
       } else {
         // Namaste: both wrists meet at the sternum, palms facing each other,
         // fingers up, elbows down and outward.
@@ -730,6 +751,14 @@ class ProceduralRig {
   // dt in seconds (signature matches AvatarRig.tick incl. trailing tNow)
   tick(dt, mode, emoteNow, posDelta) {
     this.t += dt;
+    // One-shot gestures have their own duration; the network emote can stay
+    // "active" for 6.5 s, so stop driving the pose once the gesture is over.
+    if (emoteNow) {
+      const limit =
+        emoteNow.e === 'wave' ? 3.0 : emoteNow.e === 'greet' ? 3.4 : Infinity;
+      const et = this.t - (emoteNow.started ?? this.t);
+      if (et > limit) emoteNow = null;
+    }
     this.mode = mode;
     const spd = posDelta / Math.max(dt, 1e-4);
     this.speedEma += (spd - this.speedEma) * 0.2;

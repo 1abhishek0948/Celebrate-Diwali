@@ -424,6 +424,30 @@ export class UI {
       sens.appendChild(sr);
       panel.appendChild(sens);
 
+      // Graphics quality: "Auto" uses the device tier detected at startup;
+      // the explicit choices override it and are remembered.
+      const quality = el("div", "setting-row");
+      quality.append(el("span", "", "Graphics quality"));
+      const qs = el("select", "setting-select");
+      for (const [value, label] of [
+        ["auto", "Auto"],
+        ["low", "Low (coolest)"],
+        ["medium", "Medium"],
+        ["high", "High"],
+      ]) {
+        const opt = el("option", "", label);
+        opt.value = value;
+        qs.appendChild(opt);
+      }
+      qs.value = this.settings.quality || "auto";
+      qs.onchange = () => {
+        this.settings.quality = qs.value;
+        this._saveSettings();
+        this.game.applyQuality?.(qs.value);
+      };
+      quality.appendChild(qs);
+      panel.appendChild(quality);
+
       const back = el("button", "btn", "Back");
       back.onclick = () =>
         this.game.playing ? this.hideScreens() : this.show("menu");
@@ -526,7 +550,7 @@ export class UI {
         el(
           "p",
           "muted shop-hint",
-          "Equip a cracker, then press F (or Use) in the world to light it. Phuljhadi is carried; the rest are placed on the ground.",
+          "Equip a cracker, then tap Use on screen (or F) to light it. Phuljhadi is carried; the rest are placed on the ground.",
         ),
       );
       n.appendChild(panel);
@@ -546,11 +570,10 @@ export class UI {
       saved = {};
     }
     return {
-      quality: "high",
+      quality: "auto",
       timeOfDay: "night",
       sens: 100,
       ...saved,
-      quality: "high",
     };
   }
   _saveSettings() {
@@ -1000,7 +1023,9 @@ export class UI {
     for (const f of owned) {
       const equipped = this.game.equipped === f.id;
       const slot = el("button", "fx-slot" + (equipped ? " equipped" : ""));
-      slot.title = `${f.name} — ${w.inventory[f.id]} left${equipped ? " (press F)" : ""}`;
+      slot.title = `${f.name} — ${w.inventory[f.id]} left${
+        equipped ? " (tap Use or F)" : ""
+      }`;
       slot.appendChild(el("span", "fx-emoji", FX_EMOJI[f.icon] || "🎆"));
       slot.appendChild(el("span", "fx-count", String(w.inventory[f.id])));
       if (equipped) slot.appendChild(el("span", "fx-key", "F"));
@@ -1246,7 +1271,11 @@ export class UI {
   setPrompt(item) {
     const p = $("interact-prompt");
     const useBtn = $("btn-use"); // touch equivalent of the E shortcut
-    if (useBtn) useBtn.hidden = !item;
+    const equipped = !!this.game.equipped;
+    // Show the button whenever an item is equipped; on the island, it lights
+    // the cracker (mobile-friendly alternative to F). When standing at
+    // something you can interact with, the prompt still shows what E would do.
+    if (useBtn) useBtn.hidden = !(item || equipped);
     if (!item) {
       p.hidden = true;
       return;
