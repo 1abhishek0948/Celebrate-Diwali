@@ -97,12 +97,23 @@ export class Controller {
   setLocked(v) {
     this.locked = !!v;
     if (this.locked) {
-      this.keys.clear();
-      this.joy = { x: 0, y: 0, active: false };
+      this.resetInput();
       this.hoverInteract = null;
       this.onPrompt?.(null);
       this.cancelSkyGlance();
     }
+  }
+
+  resetInput() {
+    this.keys.clear();
+    this._dragBtns.clear();
+    this.joy.x = 0;
+    this.joy.y = 0;
+    this.joy.active = false;
+    this.joy.jump = false;
+    this.vel.set(0, 0, 0);
+    this.canvas.style.cursor = "";
+    document.dispatchEvent(new CustomEvent("dm:input-reset"));
   }
 
   setSensitivity(value) {
@@ -129,10 +140,7 @@ export class Controller {
         this.activate(this.hoverInteract);
     });
     addEventListener("keyup", (e) => this.keys.delete(e.code));
-    addEventListener("blur", () => {
-      this.keys.clear();
-      this._dragBtns.clear();
-    });
+    addEventListener("blur", () => this.resetInput());
 
     // --- mouse camera: rotate while a mouse button is held on the world -----
     // Hold left-click (or right-click) and drag to orbit. No pointer lock is
@@ -185,30 +193,38 @@ export class Controller {
       camZone.addEventListener(
         "touchstart",
         (e) => {
-          last = e.changedTouches[0];
           e.preventDefault();
+          e.stopPropagation();
+          if (!this.locked && !last) last = e.changedTouches[0];
         },
         { passive: false },
       );
       camZone.addEventListener(
         "touchmove",
         (e) => {
-          const t = e.changedTouches[0];
-          if (last && t.identifier === last.identifier) {
-            this._look(t.clientX - last.clientX, t.clientY - last.clientY);
+          for (const t of e.changedTouches) {
+            if (last && t.identifier === last.identifier) {
+              this._look(t.clientX - last.clientX, t.clientY - last.clientY);
+              last = t;
+              break;
+            }
           }
-          last = t;
+          e.preventDefault();
         },
         { passive: false },
       );
-      camZone.addEventListener("touchend", (e) => {
+      const endCam = (e) => {
         if (
-          last &&
-          [...e.changedTouches].some((t) => t.identifier === last.identifier)
-        )
+          last && [...e.changedTouches].some((t) => t.identifier === last.identifier)
+        ) {
           last = null;
-      });
+        }
+      };
+      camZone.addEventListener("touchend", endCam);
       camZone.addEventListener("touchcancel", () => {
+        last = null;
+      });
+      document.addEventListener("dm:input-reset", () => {
         last = null;
       });
     }
@@ -261,7 +277,7 @@ export class Controller {
     }
     if (active && this._sky.on) this._sky.cancel = true;
     if (active) this.cancelSkyGlance();
-    this.joy = { x, y, active };
+    Object.assign(this.joy, { x, y, active });
   }
 
   // Follow a locally lit rocket / aerial shell with a brief, gentle look-up.
@@ -315,7 +331,7 @@ export class Controller {
   }
 
   activate(it) {
-    if (!it) return;
+    if (!it || this.locked) return;
     if (it.kind === "door") {
       this.net.send({ t: "door", houseId: it.houseId });
     } else if (it.kind === "greet") {
@@ -328,6 +344,7 @@ export class Controller {
   }
 
   playEmote(e) {
+    if (!this.rig || this.locked) return;
     // rig time domain: CharacterRig.tick computes et = rig.t - started
     this.emote = { e, started: this.rig.t, expire: this.rig.t + 6.5 };
     this.net.send({ t: "emote", e });

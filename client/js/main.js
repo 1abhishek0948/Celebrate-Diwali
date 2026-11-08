@@ -19,6 +19,7 @@ import { Controller } from "./controller.js";
 import { VoiceChat } from "./voice.js";
 import { UI } from "./screens.js";
 import { enterLandscape, isMobileDevice } from "./orientation.js";
+import { FrameLoop } from "./frame-loop.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -37,6 +38,9 @@ function detectDeviceQuality() {
   const mem = Number(navigator.deviceMemory) || 0;
   const cores = Number(navigator.hardwareConcurrency) || 0;
   if (isMobileDevice()) {
+    // Safari doesn't expose deviceMemory. Use a conservative local fallback;
+    // never redefine browser-owned navigator properties.
+    if (!mem) return "low";
     if ((mem && mem <= 4) || (cores && cores <= 4)) return "low";
     return "medium";
   }
@@ -185,6 +189,8 @@ class Game {
     this._lastSend = 0;
     this.myHouseId = null;
     this.timeOfDay = "night";
+    this._contextLost = false;
+    this._welcomeTimer = null;
 
     // --- Diwali economy (server is authoritative; this is only a cached view) --
     const cached = loadWalletCache();
@@ -227,7 +233,19 @@ class Game {
     this._initOrientation();
     this._wireEconomyKeys();
     this.ui.bootFlow();
-    requestAnimationFrame(() => this._loop(performance.now()));
+    this.frameLoop = new FrameLoop({
+      onFrame: (time) => this._loop(time),
+      interval: () => this._frameMinMs,
+      useTimer: () => this.quality === "low",
+      onError: (error) => {
+        console.error("Game frame failed", error);
+        this.ui.toast("The game stopped. Reload to retry.", [
+          ["Reload", () => location.reload()],
+        ], 60000);
+      },
+    });
+    this._initLifecycle();
+    this._resumeLoop();
   }
 
   // ---------------------------------------------------------------- three ---
@@ -481,6 +499,50 @@ class Game {
   }
 
   // ----------------------------------------------------------------- flow ---
+  _initLifecycle() {
+    const pause = () => {
+      this.frameLoop.stop();
+      this.controller.resetInput();
+      this._resetTouch?.();
+      this._lastT = undefined;
+    };
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) pause();
+      else this._resumeLoop();
+    });
+    window.addEventListener("pagehide", pause);
+    window.addEventListener("pageshow", () => this._resumeLoop());
+    $("gl").addEventListener(
+      "webglcontextlost",
+      (event) => {
+        event.preventDefault();
+        this._contextLost = true;
+        pause();
+        this._graphicsToast?.remove();
+        this._graphicsToast = this.ui.toast(
+          "Graphics paused. Waiting for the phone to recover.",
+          [["Reload", () => location.reload()]],
+          60000,
+        );
+      },
+      { passive: false },
+    );
+    $("gl").addEventListener("webglcontextrestored", () => {
+      // Three.js restores its own GPU resources. Rebuilding the scene here
+      // would orphan the controller, avatars, lights and festival callbacks.
+      this._contextLost = false;
+      this._graphicsToast?.remove();
+      this._graphicsToast = null;
+      this._resumeLoop();
+    });
+  }
+
+  _resumeLoop() {
+    if (document.hidden || this._contextLost || this.frameLoop.running) return;
+    this._lastT = undefined;
+    this.frameLoop.start();
+  }
+
   setName(name) {
     this.name = name;
     const p = loadProfile();
@@ -488,9 +550,11 @@ class Game {
   }
 
   enterWorld() {
+    if (this.playing) return;
     // Keep this at the top of the tap handler: fullscreen + orientation lock
     // are only allowed while the browser still sees a user gesture.
-    void enterLandscape();
+    void enterLandscape().then(() => this._syncOrientation?.());
+    document.activeElement?.blur?.();
     const prof = loadProfile();
     const av = prof.av || this.previewAv;
     this.ui.hideScreens();
@@ -503,7 +567,7 @@ class Game {
     // arm + start the golden "HAPPY DIWALI" reveal (triggers the look-up intro)
     if (this.world?.festival) this.world.festival.armed = true;
     this.world?.festival?.beginReveal?.();
-    this.net.connect({ name: this.name || prof.name, av });
+    this._connectWorld({ name: this.name || prof.name, av });
     // Speaker/voice receive is always on; the mic stays opt-in.
     this.voice.startListening();
     if (isMobileDevice()) {
@@ -512,10 +576,24 @@ class Game {
     }
   }
 
+  _connectWorld(hello = this.net.hello) {
+    clearTimeout(this._welcomeTimer);
+    this._joinToast?.remove();
+    this._welcomeTimer = setTimeout(() => {
+      if (this.net.welcomed) return;
+      this._joinToast = this.ui.toast(
+        "Could not join the village. Check your connection and retry.",
+        [["Retry", () => this._connectWorld()]],
+        30000,
+      );
+    }, 10000);
+    this.net.connect(hello);
+  }
+
   _wireTouch() {
     const joy = $("joystick"),
       knob = $("joy-knob");
-    if (!isMobileDevice() || !joy) return;
+    if (!isMobileDevice() || !joy || !knob) return;
     const R = 50;
     // Track the joystick's own touch id so a second finger (jump / camera /
     // interact) never steals or resets the movement vector (multi-touch).
@@ -538,6 +616,7 @@ class Game {
     joy.addEventListener(
       "touchstart",
       (e) => {
+        if (!this.playing || this.controller.locked) return;
         if (joyId === null) {
           const t = e.changedTouches[0];
           joyId = t.identifier;
@@ -571,18 +650,25 @@ class Game {
 
     // jump: press-and-hold works; release clears so landing doesn't re-jump
     const jumpBtn = $("btn-jump");
-    jumpBtn.addEventListener(
-      "touchstart",
-      (e) => {
-        this.controller.joy.jump = true;
-        jumpBtn.classList.add("pressed");
-        e.preventDefault();
-      },
-      { passive: false },
-    );
-    const jumpUp = () => jumpBtn.classList.remove("pressed");
-    jumpBtn.addEventListener("touchend", jumpUp);
-    jumpBtn.addEventListener("touchcancel", jumpUp);
+    if (jumpBtn) {
+      jumpBtn.addEventListener(
+        "touchstart",
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!this.playing || this.controller.locked) return;
+          this.controller.joy.jump = true;
+          jumpBtn.classList.add("pressed");
+        },
+        { passive: false },
+      );
+      const jumpUp = () => {
+        jumpBtn.classList.remove("pressed");
+        this.controller.joy.jump = false;
+      };
+      jumpBtn.addEventListener("touchend", jumpUp);
+      jumpBtn.addEventListener("touchcancel", jumpUp);
+    }
 
     // interact (E) button — now acts as the mobile "use my cracker" button on
     // the island, and falls back to the E interact prompt near interactables.
@@ -592,8 +678,10 @@ class Game {
         "touchstart",
         (e) => {
           e.preventDefault();
-          if (this.game.equipped) {
-            this.game.useEquipped();
+          e.stopPropagation();
+          if (!this.playing || this.controller.locked) return;
+          if (this.equipped && this.roomType === "island") {
+            this.useEquipped();
           } else if (this.controller.hoverInteract) {
             this.controller.activate(this.controller.hoverInteract);
           }
@@ -601,6 +689,15 @@ class Game {
         { passive: false },
       );
     }
+    this._resetTouch = () => {
+      joyId = null;
+      knob.style.transform = "translate(-50%,-50%)";
+      jumpBtn?.classList.remove("pressed");
+      this.controller.setJoystick(0, 0, false);
+      this.controller.joy.jump = false;
+    };
+    window.addEventListener("blur", this._resetTouch);
+    document.addEventListener("dm:input-reset", this._resetTouch);
   }
 
   // ------------------------------------------------------- orientation ------
@@ -609,22 +706,25 @@ class Game {
     this._syncOrientation = () => {
       if (!this._rotateEl) return;
       const viewportPortrait = window.innerHeight > window.innerWidth;
-      // While the orientation lock is active the viewport can report portrait
-      // for a frame or two before the device finishes rotating; don't flash the
-      // guard during that handoff.
       const fullscreen =
         document.fullscreenElement || document.webkitFullscreenElement;
+      // API availability is not evidence that orientation locking succeeded.
       const lockedLandscape =
-        !!fullscreen && screen.orientation?.type?.startsWith("landscape");
-      const portrait = viewportPortrait && !lockedLandscape;
-      this._rotateEl.hidden = !(
-        this.playing &&
-        portrait &&
-        isMobileDevice()
-      );
+        !!fullscreen &&
+        globalThis.screen?.orientation?.type?.startsWith("landscape");
+      const portrait = viewportPortrait && !lockedLandscape && isMobileDevice();
+      this._rotateEl.hidden = !(this.playing && portrait);
+      if (!this._rotateEl.hidden) {
+        this.controller.resetInput();
+        this._resetTouch?.();
+      }
     };
     window.addEventListener("resize", this._syncOrientation);
-    window.addEventListener("orientationchange", this._syncOrientation);
+    window.addEventListener("orientationchange", () => {
+      this._syncOrientation();
+      clearTimeout(this._orientationTimer);
+      this._orientationTimer = setTimeout(this._syncOrientation, 150);
+    });
     document.addEventListener("fullscreenchange", this._syncOrientation);
     document.addEventListener("webkitfullscreenchange", this._syncOrientation);
     this._syncOrientation();
@@ -729,7 +829,11 @@ class Game {
     this.equipped = id;
     this._saveEquipped();
     this.ui.renderWallet();
-    this.ui.toast(`${f.name} equipped — press F to use.`, [], 2200);
+    this.ui.toast(
+      `${f.name} equipped — ${isMobileDevice() ? "tap Use" : "press F"} to use.`,
+      [],
+      2200,
+    );
   }
 
   unequipItem() {
@@ -931,7 +1035,13 @@ class Game {
   _wireNet() {
     const n = this.net;
     n.on("status", (s) => this.ui.connectedUi(s));
-    n.on("welcome", (w) => this._onWelcome(w));
+    n.on("welcome", (w) => {
+      clearTimeout(this._welcomeTimer);
+      this._welcomeTimer = null;
+      this._joinToast?.remove();
+      this._joinToast = null;
+      this._onWelcome(w);
+    });
     n.on("roomRoster", (m) => {
       // house room supplementary roster (arrives after 'room')
       for (const p of m.players) this._spawnOrSync(p);
@@ -1085,25 +1195,6 @@ class Game {
 
   // ------------------------------------------------------------------ loop ---
   _loop(tNow) {
-    // Frame cap: skip presentation work until the tier's budget has elapsed.
-    // _lastT only advances on processed frames, so dt stays correct.
-    if (this._frameMinMs) {
-      const minGap = this._frameMinMs * 0.85;
-      if (this._lastFrameAt && tNow - this._lastFrameAt < minGap) {
-        // On low tier (30 fps) don't keep the GPU driver woken at the full
-        // 120 Hz display rate — pace the next wake with setTimeout so the
-        // device can rest the pipeline between the 30 frames it actually
-        // displays. Medium/high keep requestAnimationFrame (they need the
-        // smoother 60 Hz cadence).
-        if (this.quality === "low") {
-          const wait = this._frameMinMs - (tNow - this._lastFrameAt);
-          setTimeout(() => this._loop(performance.now()), Math.max(1, wait));
-        }
-        return;
-      }
-    }
-    this._lastFrameAt = tNow;
-    requestAnimationFrame((t) => this._loop(t));
     const t = tNow / 1000;
     if (this._lastT === undefined) this._lastT = t;
     let dt = Math.min(0.1, t - this._lastT);
@@ -1112,7 +1203,7 @@ class Game {
     if (this.playing && this.rig) {
       this.controller.update(dt);
       if (this.quality !== "low") this._updateShadowFollow();
-      if (this.quality !== "low") this._updateCompass();
+      this._updateCompass(); // internally throttled; keep this gameplay HUD live
 
       // send state at 15 Hz
       if (tNow - this._lastSend > 1000 / 15) {
@@ -1167,4 +1258,10 @@ class Game {
 class UIWithFreq extends UI {}
 void UIWithFreq;
 
-window.__DiwalyMeetUp = new Game();
+try {
+  window.__DiwalyMeetUp = new Game();
+} catch (error) {
+  console.error("Game startup failed", error);
+  $("startup-error").hidden = false;
+  $("startup-retry").onclick = () => location.reload();
+}

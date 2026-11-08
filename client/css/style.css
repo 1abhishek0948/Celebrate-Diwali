@@ -1229,6 +1229,11 @@ ul.list li {
   z-index: 7;
   touch-action: none;
 }
+#touch-controls[hidden],
+#cam-touch[hidden],
+#startup-error[hidden] {
+  display: none;
+}
 #joystick,
 #btn-jump,
 #btn-use {
@@ -2026,6 +2031,11 @@ ul.list li {
   #hud button {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+  }
+  /* Movement buttons must not inherit the HUD's scrolling gesture policy. */
+  #hud #btn-jump,
+  #hud #btn-use {
+    touch-action: none;
   }
 
   /* bottom-centred [ mic | input | send ] — half the previous pill width

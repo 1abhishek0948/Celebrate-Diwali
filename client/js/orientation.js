@@ -40,8 +40,9 @@ export async function enterLandscape() {
 
 export async function lockLandscape() {
   try {
-    if (!screen.orientation?.lock) return false;
-    await screen.orientation.lock("landscape");
+    const orientation = globalThis.screen?.orientation;
+    if (!orientation?.lock) return false;
+    await orientation.lock("landscape");
     return true;
   } catch {
     return false;

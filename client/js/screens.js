@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from "three";
 import { CharacterRig, SKIN, HAIRS } from "./actors.js";
-import { loadProfile, saveProfile } from "./net.js";
+import { deviceToken, loadProfile, saveProfile } from "./net.js";
 import { isMobileDevice, lockLandscape } from "./orientation.js";
 import {
   FIREWORKS,
@@ -75,6 +75,10 @@ export class UI {
       node.classList.toggle("active", key === id);
     }
     this.current = id;
+    if (this.game.playing && this.game.controller) {
+      this.game.controller.setLocked(["shop", "inventory", "settings"].includes(id));
+      this.setPrompt(this.game.controller.hoverInteract);
+    }
   }
 
   hideScreens() {
@@ -577,10 +581,14 @@ export class UI {
     };
   }
   _saveSettings() {
-    localStorage.setItem(
-      "Diwali Meet Up.settings",
-      JSON.stringify(this.settings),
-    );
+    try {
+      localStorage.setItem(
+        "Diwali Meet Up.settings",
+        JSON.stringify(this.settings),
+      );
+    } catch {
+      // Private browsing may deny storage; settings still work this session.
+    }
   }
 
   // =========================================================================
@@ -1008,6 +1016,7 @@ export class UI {
 
   // ---- HUD quick-use bar -------------------------------------------------
   renderQuickBar() {
+    this.setPrompt(this.game.controller?.hoverInteract || null);
     const bar = $("fx-bar");
     if (!bar) return;
     const w = this._wallet();
@@ -1028,7 +1037,8 @@ export class UI {
       }`;
       slot.appendChild(el("span", "fx-emoji", FX_EMOJI[f.icon] || "🎆"));
       slot.appendChild(el("span", "fx-count", String(w.inventory[f.id])));
-      if (equipped) slot.appendChild(el("span", "fx-key", "F"));
+      if (equipped)
+        slot.appendChild(el("span", "fx-key", isMobileDevice() ? "Use" : "F"));
       slot.onclick = () => this.game.equipItem(f.id);
       bar.appendChild(slot);
     }
@@ -1063,7 +1073,14 @@ export class UI {
     // keep the renderer transparent so the CSS gradient stage shows through
     scene.background = null;
     const cam = new THREE.PerspectiveCamera(38, 1, 0.1, 50);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: this.game.quality === "high",
+      alpha: true,
+      powerPreference: "low-power",
+    });
+    renderer.setPixelRatio(
+      Math.min(devicePixelRatio || 1, isMobileDevice() ? 1 : 1.5),
+    );
     stage.appendChild(renderer.domElement);
 
     const key = new THREE.DirectionalLight(0xfff2dd, 2.5);
@@ -1080,7 +1097,10 @@ export class UI {
     // start on the buddy's front side at a 3/4 angle; the idle turntable
     // slowly cycles through every side anyway
     let rig = null,
-      yaw = Math.PI + 0.5;
+      yaw = Math.PI + 0.5,
+      lastTime = null,
+      lastWidth = 0,
+      lastHeight = 0;
     const R = {
       dragging: false,
       setAvatar(av) {
@@ -1095,7 +1115,14 @@ export class UI {
         yaw += dx * 0.01;
       },
       loop(t) {
-        if (!R.dragging) yaw += 0.0032; // slow turntable while idle
+        const w = stage.clientWidth,
+          h = stage.clientHeight;
+        if (!w || !h || renderer.getContext().isContextLost()) return;
+        const dt = lastTime === null
+          ? 1 / 60
+          : Math.min(0.1, (t - lastTime) / 1000);
+        lastTime = t;
+        if (!R.dragging) yaw += 0.192 * dt;
         // studio lights ride with the viewer so the visible side is always lit
         key.position.set(
           Math.sin(yaw + 0.55) * 3,
@@ -1114,17 +1141,14 @@ export class UI {
         );
         cam.position.set(Math.sin(yaw) * 3.5, 1.7, Math.cos(yaw) * 3.5);
         cam.lookAt(0, 1.02, 0);
-        const w = stage.clientWidth,
-          h = stage.clientHeight;
-        if (
-          renderer.domElement.width !== w ||
-          renderer.domElement.height !== h
-        ) {
+        if (lastWidth !== w || lastHeight !== h) {
           renderer.setSize(w, h, false);
+          lastWidth = w;
+          lastHeight = h;
           cam.aspect = w / h;
           cam.updateProjectionMatrix();
         }
-        if (rig) rig.tick(1 / 60, 0, null, 0);
+        if (rig) rig.tick(dt, 0, null, 0);
         renderer.render(scene, cam);
         void t;
       },
@@ -1259,7 +1283,7 @@ export class UI {
       el(
         "p",
         "muted",
-        `Device key: ${(localStorage.getItem("Diwali Meet Up.token") || "").slice(0, 8)}…`,
+        `Device key: ${deviceToken().slice(0, 8)}…`,
       ),
       stats,
     );
@@ -1271,11 +1295,11 @@ export class UI {
   setPrompt(item) {
     const p = $("interact-prompt");
     const useBtn = $("btn-use"); // touch equivalent of the E shortcut
-    const equipped = !!this.game.equipped;
+    const equipped = !!this.game.equipped && this.game.roomType === "island";
     // Show the button whenever an item is equipped; on the island, it lights
     // the cracker (mobile-friendly alternative to F). When standing at
     // something you can interact with, the prompt still shows what E would do.
-    if (useBtn) useBtn.hidden = !(item || equipped);
+    if (useBtn) useBtn.hidden = this.game.controller?.locked || !(item || equipped);
     if (!item) {
       p.hidden = true;
       return;
@@ -1318,6 +1342,7 @@ export class UI {
     }
     $("toasts").appendChild(t);
     setTimeout(() => t.remove(), ms);
+    return t;
   }
 
   acceptInvite(m) {

@@ -6,27 +6,41 @@
 // ---------------------------------------------------------------------------
 const TOKEN_KEY = "Diwali Meet Up.token";
 const PROFILE_KEY = "Diwali Meet Up.profile";
+let sessionToken = null;
+let sessionProfile = {};
 
 export function deviceToken() {
-  let t = localStorage.getItem(TOKEN_KEY);
+  if (sessionToken) return sessionToken;
+  let t;
+  try {
+    t = localStorage.getItem(TOKEN_KEY);
+  } catch { /* storage denied */ }
   if (!t || !/^[a-f0-9]{16,64}$/.test(t)) {
     const arr = new Uint8Array(16);
     crypto.getRandomValues(arr);
     t = [...arr].map((b) => b.toString(16).padStart(2, "0")).join("");
-    localStorage.setItem(TOKEN_KEY, t);
+    try {
+      localStorage.setItem(TOKEN_KEY, t);
+    } catch { /* session-only identity */ }
   }
-  return t;
+  sessionToken = t;
+  return sessionToken;
 }
 
 export function loadProfile() {
   try {
-    return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+    const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null");
+    if (p && typeof p === "object" && !Array.isArray(p)) sessionProfile = p;
   } catch {
-    return {};
+    // Keep a session-only profile when private browsing blocks storage.
   }
+  return sessionProfile;
 }
 export function saveProfile(p) {
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+  sessionProfile = p;
+  try {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+  } catch { /* storage denied */ }
 }
 
 const MAX_RECONNECT_DELAY = 8000;
@@ -43,6 +57,9 @@ export class Net extends EventTarget {
     this.hello = null;
     this._queue = [];
     this._pingTimer = null;
+    this._reconnectTimer = null;
+    this._connectTimer = null;
+    this._stopped = false;
   }
 
   url() {
@@ -61,22 +78,38 @@ export class Net extends EventTarget {
 
   connect(hello) {
     if (hello) this.hello = hello;
+    this._stopped = false;
+    this.attempt = 0;
     this._open();
   }
 
   _open() {
-    if (this.ws) {
+    clearTimeout(this._reconnectTimer);
+    clearTimeout(this._connectTimer);
+    this._stopPing();
+    const old = this.ws;
+    this.ws = null; // Late callbacks from a replaced socket must be ignored.
+    if (old) {
       try {
-        this.ws.close();
+        old.close();
       } catch {}
     }
     this.status = this.attempt ? "reconnecting" : "connecting";
     this._emit("status", this.status);
-    const ws = new WebSocket(this.url());
+    let ws;
+    try {
+      ws = new WebSocket(this.url());
+    } catch {
+      this._retry();
+      return;
+    }
     this.ws = ws;
+    this._connectTimer = setTimeout(() => {
+      if (this.ws === ws) ws.close();
+    }, 10000);
 
     ws.onopen = () => {
-      this.attempt = 0;
+      if (this.ws !== ws) return;
       this.status = "open";
       this._emit("status", this.status);
       this.send(this.helloMsg());
@@ -86,6 +119,7 @@ export class Net extends EventTarget {
     };
 
     ws.onmessage = (ev) => {
+      if (this.ws !== ws) return;
       let m;
       try {
         m = JSON.parse(ev.data);
@@ -96,21 +130,28 @@ export class Net extends EventTarget {
     };
 
     ws.onclose = () => {
+      if (this.ws !== ws) return;
+      clearTimeout(this._connectTimer);
       this._stopPing();
-      if (this.welcomed) {
-        this.status = "reconnecting";
-        this._emit("status", "reconnecting");
-        const delay = Math.min(
-          MAX_RECONNECT_DELAY,
-          500 * Math.pow(2, this.attempt++),
-        );
-        setTimeout(() => this._open(), delay);
-      } else {
-        this.status = "closed";
-        this._emit("status", "closed");
-      }
+      this.ws = null;
+      this._retry();
     };
     ws.onerror = () => ws.close();
+  }
+
+  _retry() {
+    if (!this._stopped && (this.welcomed || this.attempt < 3)) {
+      this.status = "reconnecting";
+      this._emit("status", this.status);
+      const delay = Math.min(
+        MAX_RECONNECT_DELAY,
+        500 * Math.pow(2, this.attempt++),
+      );
+      this._reconnectTimer = setTimeout(() => this._open(), delay);
+    } else {
+      this.status = "closed";
+      this._emit("status", this.status);
+    }
   }
 
   send(msg) {
@@ -120,6 +161,9 @@ export class Net extends EventTarget {
 
   resetSession() {
     this.welcomed = false;
+    this._stopped = true;
+    clearTimeout(this._reconnectTimer);
+    clearTimeout(this._connectTimer);
     this._stopPing();
   }
 
@@ -145,6 +189,7 @@ export class Net extends EventTarget {
   _route(m) {
     switch (m.t) {
       case "welcome": {
+        clearTimeout(this._connectTimer);
         this.welcomed = true;
         this.attempt = 0;
         this._emit("welcome", m);

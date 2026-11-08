@@ -34,6 +34,17 @@
       <!-- full-screen flow screens are injected by screens.js into #screens -->
       <div id="screens"></div>
 
+      <div id="startup-error" class="screen active" role="alert" hidden>
+        <div class="panel">
+          <h2>Could not start the game</h2>
+          <p>
+            Reload to retry. If this keeps happening, use an updated Safari or
+            Chrome browser with WebGL enabled.
+          </p>
+          <button id="startup-retry" class="btn" type="button">Reload</button>
+        </div>
+      </div>
+
       <!-- in-game HUD -->
       <div id="hud" hidden>
         <div class="hud-chip" id="hud-chip">
@@ -261,7 +272,7 @@
         <!-- mobile controls -->
         <div id="touch-controls" hidden>
           <div id="joystick"><div id="joy-knob"></div></div>
-          <button id="btn-use" hidden>Use</button>
+          <button id="btn-use" type="button" hidden>Use</button>
           <button
             id="btn-jump"
             aria-label="Jump"
