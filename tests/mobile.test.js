@@ -8,6 +8,7 @@ import { webcrypto } from "node:crypto";
 import * as THREE from "three";
 import * as constants from "../shared/constants.js";
 import { FrameLoop } from "../client/js/frame-loop.js";
+import { ParticleDraw } from "../client/js/particle-draw.js";
 
 class ClientEvent extends Event {
   constructor(type, options = {}) {
@@ -55,7 +56,7 @@ function client(file, names, environment = {}) {
     .replace(/export (class|function)/g, "$1");
   if (file === "main.js") source = source.slice(0, source.lastIndexOf("try {\n  window.__DiwalyMeetUp"));
   const context = {
-    ...constants, THREE, UI: class {}, EventTarget, CustomEvent: ClientEvent, crypto: webcrypto,
+    ...constants, THREE, ParticleDraw, UI: class {}, EventTarget, CustomEvent: ClientEvent, crypto: webcrypto,
     setTimeout, clearTimeout, setInterval, clearInterval,
     isMobileDevice: () => true,
     ...environment,
@@ -319,7 +320,7 @@ test("orientation guard follows the viewport even when the lock API is unsupport
 test("Safari auto quality uses a local fallback without changing navigator", () => {
   const navigator = Object.freeze({ hardwareConcurrency: 6 });
   const { detectDeviceQuality } = client("main.js", ["detectDeviceQuality"], { navigator });
-  assert.equal(detectDeviceQuality(), "low");
+  assert.equal(detectDeviceQuality(), "cool");
   assert.equal(navigator.deviceMemory, undefined);
 });
 
@@ -399,4 +400,172 @@ test("a replaced session stops reconnecting, including a pending retry", () => {
   timing.advance(30000);
   assert.equal(sockets.length, 1);
   assert.equal(timing.pending.size, 0);
+});
+
+test("fast Android phones default to Cool, not shadowed 60 fps Medium", () => {
+  const { detectDeviceQuality, QUALITY_PRESETS } = client("main.js", ["detectDeviceQuality", "QUALITY_PRESETS"], {
+    navigator: Object.freeze({ deviceMemory: 12, hardwareConcurrency: 8 }),
+  });
+  assert.equal(detectDeviceQuality(), "cool");
+  assert.equal(QUALITY_PRESETS.cool.frameCap, 30);
+  assert.equal(QUALITY_PRESETS.cool.dpr, 0.75);
+  assert.equal(QUALITY_PRESETS.cool.shadows, false);
+});
+
+test("desktop Auto quality stays High and manual quality choices remain available", () => {
+  const environment = dom();
+  environment.node("app").classList.toggle = () => {};
+  const { Game, detectDeviceQuality } = client("main.js", ["Game", "detectDeviceQuality"], {
+    ...environment, navigator: { deviceMemory: 16 }, isMobileDevice: () => false,
+  });
+  assert.equal(detectDeviceQuality(), "high");
+  const game = Object.create(Game.prototype);
+  game._autoQuality = "cool";
+  game._enableWorldShadows = () => {};
+  for (const q of ["cool", "low", "medium", "high"]) {
+    game.applyQuality(q);
+    assert.equal(game.quality, q);
+  }
+  game.applyQuality("auto");
+  assert.equal(game.quality, "cool");
+});
+
+test("opaque menus stop full-world work without stopping the scheduler", () => {
+  const { Game } = client("main.js", ["Game"]);
+  const game = Object.create(Game.prototype);
+  let previews = 0;
+  Object.assign(game, { playing: false, ui: { current: "character", previewLoop: () => previews++ },
+    world: { tick() { throw new Error("hidden world should sleep"); } },
+    renderer: { render() { throw new Error("hidden world should not render"); } },
+  });
+  game._loop(1000);
+  assert.equal(previews, 1);
+  assert.equal(game._frameInterval(), 50);
+  game.ui.current = "menu";
+  game._loop(1200);
+  assert.equal(previews, 1);
+  assert.equal(game._frameInterval(), 200);
+});
+
+test("voice membership sorting is throttled, not audio or local movement", () => {
+  const { Game } = client("main.js", ["Game"], { performance: { now: () => 1000 } });
+  const game = Object.create(Game.prototype);
+  let moves = 0, voices = 0;
+  Object.assign(game, { playing: true, rig: {}, quality: "cool", _lastSend: 0, seq: 0,
+    controller: { pos: new THREE.Vector3(), yaw: 0, mode: 0, update: () => moves++, net: { send() {} } },
+    remotePlayers: new Map(), voice: { updatePeers: () => voices++ }, ui: {},
+    world: { updateView() {}, tick() {} }, renderer: { render() {} }, labelRenderer: { render() {} },
+  });
+  for (let frame = 1; frame <= 60; frame++) game._loop(frame * 1000 / 30);
+  assert.equal(moves, 60);
+  assert.ok(voices <= 4);
+});
+
+test("nearby nature chunks stay visible without changing collisions or map bounds", () => {
+  const { World } = client("world.js", ["World"]);
+  const world = Object.create(World.prototype);
+  const collider = { type: "circle", x: 280, z: 0, r: 0.4 };
+  const chunks = [0, 96, 256].map((x) => ({ x0: x, x1: x + 64, z0: 0, z1: 64, group: new THREE.Group() }));
+  Object.assign(world, { quality: "cool", natureChunks: chunks, colliders: [collider], festival: { setView() {}, setQuality() {} } });
+  world.updateView(0, 0);
+  assert.equal(chunks[0].group.visible, true);
+  assert.equal(chunks[1].group.visible, true);
+  assert.equal(chunks[2].group.visible, false);
+  world.updateView(280, 0);
+  assert.equal(chunks[0].group.visible, false);
+  assert.equal(chunks[2].group.visible, true);
+  world.setQuality("high");
+  assert.ok(chunks.every((c) => c.group.visible));
+  assert.equal(world.colliders[0], collider);
+  assert.equal(constants.PLAZA_RADIUS, 40);
+  assert.equal(constants.PLAY_RADIUS, 300);
+});
+
+test("particle draw omits dead slots, reuses storage, and hides empty pools", () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(30), 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(30), 3));
+  const points = new THREE.Points(geometry);
+  const draw = new ParticleDraw(points, 10);
+  const storage = draw.index.array;
+  draw.add(3);
+  draw.add(8);
+  draw.finish();
+  assert.equal(geometry.drawRange.count, 2);
+  assert.deepEqual([...storage.slice(0, 2)], [3, 8]);
+  assert.equal(points.visible, true);
+  assert.equal(geometry.attributes.position.updateRanges[0].count, 27);
+  draw.reset();
+  draw.finish();
+  assert.equal(points.visible, false);
+  assert.equal(geometry.drawRange.count, 0);
+  assert.equal(draw.index.array, storage);
+});
+
+function effects() {
+  const { Festival } = client("festival.js", ["Festival"]);
+  const f = Object.create(Festival.prototype);
+  Object.assign(f, { root: new THREE.Group(), _softTexture: () => null,
+    rand: () => 0.5, time: 0, quality: "cool", reduceMotion: false, clearings: [] });
+  f._buildFireworks();
+  f._buildSmoke();
+  f._initPfxSparks();
+  f.setQuality("cool");
+  return f;
+}
+
+test("Cool hides decorative lights and all three particle pools draw only live slots", () => {
+  const f = effects();
+  const house = new THREE.PointLight();
+  f._houseLights = [house];
+  f.setQuality("cool");
+  assert.equal(house.visible, false);
+  assert.equal(f.fwLight.visible, false);
+  assert.equal(f.sparkLight.visible, true);
+  f.nextBurst = 100;
+  f._spark(0, 2, 0, 1, 1, 1, 1, 0.8, 0.2, 0.1);
+  f._puff(0, 2, 0, 0.5, 0.1);
+  f._pfxSpark(0, 2, 0, 1, 1, 1, 1, 0.8, 0.2, 0.1);
+  f._updateFireworks(0.03);
+  f._updateSmoke(0.03);
+  f._updatePfxSparks(0.03);
+  for (const points of [f.fwPoints, f.smokePoints, f.pfxSparkPoints]) {
+    assert.equal(points.geometry.drawRange.count, 1);
+    assert.equal(points.visible, true);
+  }
+  f._updateFireworks(0.1);
+  f._updateSmoke(0.1);
+  f._updatePfxSparks(0.1);
+  for (const points of [f.fwPoints, f.smokePoints, f.pfxSparkPoints]) {
+    assert.equal(points.geometry.drawRange.count, 0);
+    assert.equal(points.visible, false);
+  }
+  f.setQuality("high");
+  assert.equal(house.visible, true);
+  assert.equal(f.fwLight.visible, true);
+});
+
+test("switching quality clears stale particles but retains pending player rockets", () => {
+  const f = effects();
+  f.rockets.push({ idx: 599, bought: true, fuse: 1 });
+  f._pfxSpark(0, 2, 0, 0, 0, 0, 1, 1, 1, 1);
+  f._updatePfxSparks(0.03);
+  assert.equal(f.pfxSparkPoints.visible, true);
+  f.setQuality("low");
+  assert.equal(f.pfxSparkPoints.visible, false);
+  assert.equal(f.rockets.length, 1);
+  assert.equal(f.rockets[0].bought, true);
+});
+
+test("Cool limits nearby ambient emitters and never queues distant catch-up sparks", () => {
+  const f = effects();
+  f._buildCrackers();
+  f.setView(0, 0);
+  f._updateCrackers(0.1);
+  assert.equal(f.crackers.filter((c) => c.glow.opacity > 0.12).length, 2);
+  const emitted = f.pfxSparkNext;
+  f.setView(200, 200);
+  f._updateCrackers(0.1);
+  assert.equal(f.pfxSparkNext, emitted);
+  assert.ok(f.crackers.every((c) => c.acc === 0));
 });

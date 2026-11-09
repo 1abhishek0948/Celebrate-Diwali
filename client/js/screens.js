@@ -435,7 +435,8 @@ export class UI {
       const qs = el("select", "setting-select");
       for (const [value, label] of [
         ["auto", "Auto"],
-        ["low", "Low (coolest)"],
+        ["cool", "Cool (battery saver)"],
+        ["low", "Low"],
         ["medium", "Medium"],
         ["high", "High"],
       ]) {
@@ -451,6 +452,9 @@ export class UI {
       };
       quality.appendChild(qs);
       panel.appendChild(quality);
+      panel.appendChild(
+        el("p", "muted", "Auto uses Cool on phones: 30 FPS, lighter effects, no shadows. Medium/High use more battery and can increase heat."),
+      );
 
       const back = el("button", "btn", "Back");
       back.onclick = () =>

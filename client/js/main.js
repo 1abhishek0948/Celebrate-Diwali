@@ -29,6 +29,7 @@ const $ = (id) => document.getElementById(id);
 // they need to. Values are deliberately conservative on phones.
 // ---------------------------------------------------------------------------
 const QUALITY_PRESETS = {
+  cool: { dpr: 0.75, frameCap: 30, shadows: false },
   low: { dpr: 1, frameCap: 30, shadows: false },
   medium: { dpr: 1.5, frameCap: 60, shadows: true },
   high: { dpr: 2, frameCap: 60, shadows: true },
@@ -36,13 +37,10 @@ const QUALITY_PRESETS = {
 
 function detectDeviceQuality() {
   const mem = Number(navigator.deviceMemory) || 0;
-  const cores = Number(navigator.hardwareConcurrency) || 0;
   if (isMobileDevice()) {
-    // Safari doesn't expose deviceMemory. Use a conservative local fallback;
-    // never redefine browser-owned navigator properties.
-    if (!mem) return "low";
-    if ((mem && mem <= 4) || (cores && cores <= 4)) return "low";
-    return "medium";
+    // Memory/cores measure capacity, not sustained thermal headroom. Even
+    // fast Android phones need a conservative default for long sessions.
+    return "cool";
   }
   // low-memory desktops still get a lighter profile
   if (mem && mem <= 4) return "medium";
@@ -235,8 +233,9 @@ class Game {
     this.ui.bootFlow();
     this.frameLoop = new FrameLoop({
       onFrame: (time) => this._loop(time),
-      interval: () => this._frameMinMs,
-      useTimer: () => this.quality === "low",
+      interval: () => this._frameInterval(),
+      useTimer: () =>
+        this.quality === "cool" || this.quality === "low" || !this.playing,
       onError: (error) => {
         console.error("Game frame failed", error);
         this.ui.toast("The game stopped. Reload to retry.", [
@@ -398,7 +397,7 @@ class Game {
   // the shadow pass just to render shadows nobody looks at).
   _enableWorldShadows() {
     const moon = this.dayNightLights?.moon;
-    const on = this.quality !== "low";
+    const on = QUALITY_PRESETS[this.quality].shadows;
     if (moon) {
       this._shadowMoonDir ||= moon.position.clone().normalize();
       moon.castShadow = on;
@@ -462,10 +461,19 @@ class Game {
   applyQuality(q) {
     // "auto" (or an unknown value) resolves through the device tier.
     const resolved =
-      q === "low" || q === "medium" || q === "high" ? q : this._autoQuality;
+      Object.hasOwn(QUALITY_PRESETS, q) ? q : this._autoQuality;
     this._applyRendererQuality(resolved);
     this.world?.setQuality(this.quality);
     this._enableWorldShadows();
+    $("app").classList.toggle("cool-mode", this.quality === "cool");
+  }
+
+  _frameInterval() {
+    // Opaque menu screens don't need an animated island behind them. Keep
+    // multiplayer processing alive behind in-game panels, at a gentler rate.
+    if (!this.playing) return this.ui?.current === "character" ? 1000 / 20 : 200;
+    if (this.quality === "cool" && this.controller?.locked) return 1000 / 15;
+    return this._frameMinMs;
   }
 
   setTimeOfDay(mode) {
@@ -1165,6 +1173,7 @@ class Game {
       rp = new RemotePlayer(p, { roomId: this.room });
       this.scene.add(rp.rig.root);
       this.remotePlayers.set(p.id, rp);
+      this._lastVoiceAt = 0;
     } else {
       rp.rig.setName(p.name);
       rp.name = p.name;
@@ -1191,6 +1200,7 @@ class Game {
     this.voice.hangup(id);
     this.world.festival?.detachSparkler?.(id);
     this.remotePlayers.delete(id);
+    this._lastVoiceAt = 0;
   }
 
   // ------------------------------------------------------------------ loop ---
@@ -1202,7 +1212,7 @@ class Game {
 
     if (this.playing && this.rig) {
       this.controller.update(dt);
-      if (this.quality !== "low") this._updateShadowFollow();
+      this._updateShadowFollow(); // returns immediately when shadows are disabled
       this._updateCompass(); // internally throttled; keep this gameplay HUD live
 
       // send state at 15 Hz
@@ -1221,32 +1231,44 @@ class Game {
 
       // remote interpolation + room-wide voice
       const renderT = performance.now() - SNAPSHOT_BUFFER;
-      const candidates = [];
+      const updateVoice = !this._lastVoiceAt || tNow - this._lastVoiceAt >= 500;
+      const candidates = updateVoice ? (this._voiceCandidates ||= []) : null;
+      if (candidates) candidates.length = 0;
       for (const rp of this.remotePlayers.values()) {
         rp.tick(renderT, dt);
         const dist = Math.hypot(
           rp.rig.root.position.x - this.controller.pos.x,
           rp.rig.root.position.z - this.controller.pos.z,
         );
-        candidates.push({ id: rp.id, dist });
+        if (candidates) candidates.push({ id: rp.id, dist });
         // Name tags are DOM layers re-projected through CSS2DRenderer; at
         // distance they are unreadable anyway, so skip them entirely.
         if (rp.rig.label) rp.rig.label.visible = dist < 70;
       }
-      this.voice.updatePeers(candidates);
+      if (candidates) {
+        this.voice.updatePeers(candidates);
+        this._lastVoiceAt = tNow;
+      }
     }
 
     // character select preview also animates through its own hook
-    if (this.ui.previewLoop && this.ui.current === "character")
-      this.ui.previewLoop(tNow);
+    if (!this.playing) {
+      // The character preview has its own renderer; the full island used to
+      // render and animate underneath every opaque startup/menu screen too.
+      if (this.ui.previewLoop && this.ui.current === "character")
+        this.ui.previewLoop(tNow);
+      return;
+    }
+    this.world?.updateView(this.controller.pos.x, this.controller.pos.z);
     if (this.world) this.world.tick(tNow, dt);
 
     this.renderer.render(this.scene, this.camera);
     // CSS2D re-projects every label, re-sorts z-order and writes DOM
     // transforms. Name tags don't need to track the world smoothly, so we
-    // cut the write rate to ~15 Hz on low tier and 30 Hz otherwise.
+    // cut the write rate to ~10 Hz on Cool, 15 Hz on Low, 30 Hz otherwise.
     this._labelAcc = (this._labelAcc || 0) + dt;
-    const labelHz = this.quality === "low" ? 0.066 : 0.033;
+    const labelHz =
+      this.quality === "cool" ? 0.1 : this.quality === "low" ? 0.066 : 0.033;
     if (this._labelAcc >= labelHz) {
       this._labelAcc = 0;
       this.labelRenderer.render(this.scene, this.camera);

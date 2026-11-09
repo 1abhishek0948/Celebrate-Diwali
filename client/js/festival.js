@@ -13,6 +13,7 @@
 // Interaction is exposed through world.interactables ("kind: 'festival'").
 // ---------------------------------------------------------------------------
 import * as THREE from "three";
+import { ParticleDraw } from "./particle-draw.js";
 import {
   PLAZA_RADIUS,
   ROADS,
@@ -93,6 +94,29 @@ const MARIGOLD = [0xff9a1e, 0xffb733, 0xffd24d, 0xff7a2e, 0xffc44d];
 // quality can be switched live; the tier only changes how much of a pool is
 // simulated/drawn and how often the sky show fires.
 const QUALITY_TIERS = {
+  cool: {
+    stars: 500,
+    lanterns: 18,
+    crowd: 16,
+    fwCap: 600,
+    fwK: 0.35,
+    fwTrail: 14,
+    fwGap: 3,
+    fwSalvo: 1,
+    fwExtra: false,
+    fwPop: 8,
+    smokeCap: 36,
+    pfxCap: 450,
+    cracker: { anar: 48, chakri: 36, phuljhadi: 30 },
+    sparkler: 40,
+    motes: 50,
+    streetMotes: 20,
+    mist: 0,
+    textParticles: 300,
+    sparkles: 20,
+    sparkleRate: 2,
+    lanternLight: 0,
+  },
   low: {
     stars: 900,
     lanterns: 36,
@@ -168,7 +192,7 @@ export class Festival {
   constructor(world, opts = {}) {
     this.world = world;
     this.quality =
-      opts.quality === "low" || opts.quality === "medium"
+      opts.quality === "cool" || opts.quality === "low" || opts.quality === "medium"
         ? opts.quality
         : "high";
     this.tier = QUALITY_TIERS[this.quality];
@@ -2134,6 +2158,7 @@ export class Festival {
       }),
     );
     this.fwPoints.frustumCulled = false;
+    this.fwDraw = new ParticleDraw(this.fwPoints, max);
     this.root.add(this.fwPoints);
 
     this.fwLight = new THREE.PointLight(0xffd0a0, 0, 320, 1.2);
@@ -2530,6 +2555,7 @@ export class Festival {
     const p = this.fwPoints.geometry.attributes.position.array;
     const c = this.fwPoints.geometry.attributes.color.array;
     const drag = Math.exp(-dt * 0.9);
+    this.fwDraw.reset();
     for (let i = 0; i < cap; i++) {
       if (this.fwLife[i] <= 0) {
         c[i * 3] = c[i * 3 + 1] = c[i * 3 + 2] = 0;
@@ -2568,9 +2594,9 @@ export class Festival {
       c[i3] = this.fwBase[i3] * f;
       c[i3 + 1] = this.fwBase[i3 + 1] * f;
       c[i3 + 2] = this.fwBase[i3 + 2] * f;
+      this.fwDraw.add(i);
     }
-    this.fwPoints.geometry.attributes.position.needsUpdate = true;
-    this.fwPoints.geometry.attributes.color.needsUpdate = true;
+    this.fwDraw.finish();
     // flash lights decay
     this.fwFlash = Math.max(0, this.fwFlash - dt * 3.2);
     this.fwLight.intensity = this.fwFlash * 3.4;
@@ -2615,6 +2641,7 @@ export class Festival {
       }),
     );
     this.smokePoints.frustumCulled = false;
+    this.smokeDraw = new ParticleDraw(this.smokePoints, max);
     this.root.add(this.smokePoints);
     this._smokeNight = new THREE.Color(0x1a1738); // colour a puff fades into
   }
@@ -2644,6 +2671,7 @@ export class Festival {
     const c = this.smokePoints.geometry.attributes.color.array;
     const night = this._smokeNight;
     const drag = Math.exp(-dt * 0.55);
+    this.smokeDraw.reset();
     for (let i = 0; i < this.smokeCap; i++) {
       if (this.smokeLife[i] <= 0) {
         c[i * 3] = c[i * 3 + 1] = c[i * 3 + 2] = 0;
@@ -2670,9 +2698,9 @@ export class Festival {
       c[i3] = this.smokeBase[i3] * (1 - fade) + night.r * fade;
       c[i3 + 1] = this.smokeBase[i3 + 1] * (1 - fade) + night.g * fade;
       c[i3 + 2] = this.smokeBase[i3 + 2] * (1 - fade) + night.b * fade;
+      this.smokeDraw.add(i);
     }
-    this.smokePoints.geometry.attributes.position.needsUpdate = true;
-    this.smokePoints.geometry.attributes.color.needsUpdate = true;
+    this.smokeDraw.finish();
   }
 
   // --------------------------------------------------- ground firecrackers ---
@@ -2821,6 +2849,17 @@ export class Festival {
 
     for (let ci = 0; ci < list.length; ci++) {
       const c = list[ci];
+      if (
+        this.quality === "cool" &&
+        (ci % 4 !== Math.floor(this.time / 8) % 4 ||
+          Math.hypot(c.x - (this.viewX ?? 0), c.z - (this.viewZ ?? 0)) > 55)
+      ) {
+        // Two ambient props burn at a time, only nearby. Bought items use a
+        // separate update path and never lose their effect or inventory use.
+        c.acc = 0;
+        c.glow.opacity = 0.12;
+        continue;
+      }
       c.t += dt;
       // ~7 s active burn, then a brief cooldown before re-lighting
       if (c.on) {
@@ -3103,6 +3142,7 @@ export class Festival {
       }),
     );
     this.pfxSparkPoints.frustumCulled = false;
+    this.pfxDraw = new ParticleDraw(this.pfxSparkPoints, max);
     this.root.add(this.pfxSparkPoints);
   }
 
@@ -3130,11 +3170,10 @@ export class Festival {
     if (!this.pfxSparkPoints) return;
     const p = this.pfxSparkPoints.geometry.attributes.position.array;
     const c = this.pfxSparkPoints.geometry.attributes.color.array;
-    const drag = 0.985;
-    let live = false;
+    const drag = Math.exp(Math.log(0.985) * dt * 60);
+    this.pfxDraw.reset();
     for (let i = 0; i < this.pfxSparkCap; i++) {
       if (this.pfxSparkLife[i] <= 0) continue;
-      live = true;
       const i3 = i * 3;
       const life = this.pfxSparkLife[i] - dt;
       this.pfxSparkLife[i] = life;
@@ -3169,11 +3208,9 @@ export class Festival {
       c[i3] = this.pfxSparkBase[i3] * f;
       c[i3 + 1] = this.pfxSparkBase[i3 + 1] * f;
       c[i3 + 2] = this.pfxSparkBase[i3 + 2] * f;
+      this.pfxDraw.add(i);
     }
-    if (live) {
-      this.pfxSparkPoints.geometry.attributes.position.needsUpdate = true;
-      this.pfxSparkPoints.geometry.attributes.color.needsUpdate = true;
-    }
+    this.pfxDraw.finish();
   }
 
   // A bought shell opens with a short additive bloom at the burst point. One
@@ -3797,7 +3834,7 @@ export class Festival {
 
   // ------------------------------------------------------------------- tick --
   tick(timeMs, dtIn) {
-    const dt = Math.min(0.05, dtIn || 0.016);
+    const dt = Math.min(0.1, dtIn || 0.016);
     this.time += dt;
     const t = this.time;
     this.timeUniform.value = t;
@@ -3834,7 +3871,7 @@ export class Festival {
     }
     this.lanternBody.instanceMatrix.needsUpdate = true;
     this.lanternGlowGeo.attributes.position.needsUpdate = true;
-    if (this.lanternLights) {
+    if (this.lanternLights && this.quality !== "cool") {
       for (let i = 0; i < this.lanternLights.length; i++) {
         const l = this.lanterns[(i * 7) % lanternCount];
         this.lanternLights[i].position.set(
@@ -3888,14 +3925,18 @@ export class Festival {
     for (const w of this.wheels || []) w.rotation.y += wheelSpin * dt;
 
     // house / shrine lights gentle pulse
-    for (const pl of this._houseLights || [])
+    for (const pl of this._houseLights || []) {
+      if (!pl.visible) continue;
       pl.intensity =
         pl.userData.baseIntensity *
         (0.9 + Math.sin(t * 6 + pl.position.x) * 0.1);
-    for (const pl of this._shrineLights || [])
+    }
+    for (const pl of this._shrineLights || []) {
+      if (!pl.visible) continue;
       pl.intensity =
         pl.userData.baseIntensity *
         (0.92 + Math.sin(t * 5 + pl.position.z) * 0.08);
+    }
 
     // fireworks, ground firecrackers, player-fired crackers and their smoke
     this._updateFireworks(dt);
@@ -3980,6 +4021,11 @@ export class Festival {
   }
 
   // --------------------------------------------------------------- quality ---
+  setView(x, z) {
+    this.viewX = x;
+    this.viewZ = z;
+  }
+
   _clearParticlePool(points, life) {
     if (!points) return;
     if (life) life.fill(0);
@@ -3999,10 +4045,20 @@ export class Festival {
   }
 
   setQuality(q) {
-    const key = q === "low" || q === "medium" ? q : "high";
+    const key = q === "cool" || q === "low" || q === "medium" ? q : "high";
     const tier = QUALITY_TIERS[key];
     this.quality = key;
     this.tier = tier;
+    // Zero-intensity lights still enter Three.js lighting shader loops. Hide
+    // decorations on Cool, retaining the player lamp, bonfire and item light.
+    for (const light of [
+      ...(this._houseLights || []),
+      ...(this._shrineLights || []),
+      ...(this.lanternLights || []),
+      this.fwLight,
+    ]) {
+      if (light) light.visible = key !== "cool";
+    }
 
     if (this.stars) {
       this.stars.geometry.setDrawRange(
@@ -4031,14 +4087,14 @@ export class Festival {
       this._clearParticlePool(this.fwPoints, this.fwLife);
       this.fwBounce?.fill(0);
       if (this.rockets) for (const rk of this.rockets) rk.idx %= fwCap;
-      if (this.fwPoints) this.fwPoints.geometry.setDrawRange(0, fwCap);
+      this.fwDraw?.reset();
     }
 
     const smokeCap = Math.min(this.smokeMax || 0, tier.smokeCap);
     if (smokeCap !== this.smokeCap) {
       this.smokeCap = smokeCap;
       this._clearParticlePool(this.smokePoints, this.smokeLife);
-      if (this.smokePoints) this.smokePoints.geometry.setDrawRange(0, smokeCap);
+      this.smokeDraw?.reset();
     }
 
     const pfxCap = Math.min(this.pfxSparkMax || 0, tier.pfxCap);
@@ -4046,8 +4102,7 @@ export class Festival {
       this.pfxSparkCap = pfxCap;
       this._clearParticlePool(this.pfxSparkPoints, this.pfxSparkLife);
       this.pfxSparkBounce?.fill(0);
-      if (this.pfxSparkPoints)
-        this.pfxSparkPoints.geometry.setDrawRange(0, pfxCap);
+      this.pfxDraw?.reset();
     }
 
     this.moteCount = Math.min(this.moteState?.length || 0, tier.motes);
@@ -4810,7 +4865,7 @@ export class Festival {
       const pa = this.textParticles.geometry.attributes.position.array;
       const ca = this.textParticles.geometry.attributes.color.array;
       const span = TEXT_REVEAL * 0.8;
-      for (let i = 0; i < st.length; i++) {
+      for (let i = 0; i < this.textParticles.geometry.drawRange.count; i++) {
         const p = st[i];
         const local = Math.min(1, Math.max(0, (r - p.delay) / span));
         const e = easeOutCubic(local);

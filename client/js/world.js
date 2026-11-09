@@ -42,7 +42,7 @@ export class World {
   constructor(scene, opts = {}) {
     this.scene = scene;
     this.quality =
-      opts.quality === "low" || opts.quality === "medium"
+      opts.quality === "cool" || opts.quality === "low" || opts.quality === "medium"
         ? opts.quality
         : "high";
     this.colliders = []; // {type:'aabb',x0,x1,z0,z1} | {type:'circle',x,z,r}
@@ -154,8 +154,25 @@ export class World {
   }
 
   setQuality(q) {
-    this.quality = q === "low" || q === "medium" ? q : "high";
+    this.quality = q === "cool" || q === "low" || q === "medium" ? q : "high";
     this.festival.setQuality(this.quality);
+    this.updateView(this._viewX ?? 0, this._viewZ ?? 0, true);
+  }
+
+  updateView(x, z, force = false) {
+    // Cull spatial batches, not individual instances. Keeping all colliders
+    // registered preserves gameplay as scenery appears around the player.
+    if (!force && Math.hypot(x - this._viewX, z - this._viewZ) < 6) return;
+    this._viewX = x;
+    this._viewZ = z;
+    const radius =
+      this.quality === "cool" ? 120 : this.quality === "low" ? 180 : Infinity;
+    for (const chunk of this.natureChunks || []) {
+      const dx = Math.max(chunk.x0 - x, 0, x - chunk.x1);
+      const dz = Math.max(chunk.z0 - z, 0, z - chunk.z1);
+      chunk.group.visible = dx * dx + dz * dz <= radius * radius;
+    }
+    this.festival.setView(x, z);
   }
 
   setTimeOfDay(mode) {
@@ -1296,6 +1313,9 @@ export class World {
     }
 
     // ---- build the batches ---------------------------------------------------
+    this.natureChunks = [];
+    const chunks = new Map();
+    const chunkSize = 64;
     const buildBatch = (geo, material, list) => {
       const im = new THREE.InstancedMesh(geo, material, list.length);
       list.forEach((it, i) => {
@@ -1304,10 +1324,36 @@ export class World {
       });
       im.instanceMatrix.needsUpdate = true;
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      im.matrixAutoUpdate = false;
       // instanced bounds: geometry sphere alone would wrongly cull the batch
       if (im.computeBoundingSphere) im.computeBoundingSphere();
       else im.frustumCulled = false;
       return im;
+    };
+
+    const buildChunks = (geo, material, list) => {
+      const batches = new Map();
+      for (const it of list) {
+        const cx = Math.floor(it.M.elements[12] / chunkSize);
+        const cz = Math.floor(it.M.elements[14] / chunkSize);
+        const key = `${cx},${cz}`;
+        if (!chunks.has(key)) {
+          const chunk = {
+            group: new THREE.Group(),
+            x0: cx * chunkSize,
+            z0: cz * chunkSize,
+            x1: (cx + 1) * chunkSize,
+            z1: (cz + 1) * chunkSize,
+          };
+          chunks.set(key, chunk);
+          this.natureChunks.push(chunk);
+          this.island.add(chunk.group);
+        }
+        if (!batches.has(key)) batches.set(key, []);
+        batches.get(key).push(it);
+      }
+      for (const [key, batch] of batches)
+        chunks.get(key).group.add(buildBatch(geo, material, batch));
     };
 
     const barkGeo = new THREE.CylinderGeometry(0.35, 0.5, 1, 7); // tapered by scale.y
@@ -1336,12 +1382,13 @@ export class World {
         );
     };
 
-    this.island.add(buildBatch(barkGeo, this.mats.trunk, trunks));
-    this.island.add(buildBatch(branchGeo, this.mats.barkDetail, branches));
-    this.island.add(buildBatch(blobGeo, this.mats.canopy, blobs));
-    this.island.add(buildBatch(conePine, this.mats.canopy, pineTiers));
-    this.island.add(buildBatch(frondGeo, this.mats.grassBlade, fronds));
-    this.island.add(buildBatch(bladeGeo, this.mats.grassBlade, blades));
+    buildChunks(barkGeo, this.mats.trunk, trunks);
+    buildChunks(branchGeo, this.mats.barkDetail, branches);
+    buildChunks(blobGeo, this.mats.canopy, blobs);
+    buildChunks(conePine, this.mats.canopy, pineTiers);
+    buildChunks(frondGeo, this.mats.grassBlade, fronds);
+    buildChunks(bladeGeo, this.mats.grassBlade, blades);
+    this.updateView(0, 0, true);
   }
 
   // ------------------------------------------------------- house interiors --
